@@ -1,11 +1,7 @@
-name: Publish to TestPyPI
+name: Publish to PyPI
 
 on:
-  # Manual run from the Actions tab (recommended for TestPyPI dry-runs).
   workflow_dispatch:
-  # Optional: also publish when you create a GitHub Release.
-  release:
-    types: [published]
 
 permissions:
   contents: read
@@ -14,8 +10,8 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     environment:
-      name: testpypi
-      url: https://test.pypi.org/project/betasieve/
+      name: pypi
+      url: https://pypi.org/project/betasieve/
     permissions:
       id-token: write
 
@@ -34,8 +30,8 @@ jobs:
       - name: Build wheel and sdist
         run: python -m build
 
-      - name: Publish to TestPyPI
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
+          repository-url: https://upload.pypi.org/legacy/
           skip-existing: true
