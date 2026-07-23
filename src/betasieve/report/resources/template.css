@@ -1,0 +1,348 @@
+/* =========================================================
+   betaSieve Report — CSS
+   Scientific white/green report style:
+     dark  #2F3437  (headings, text)
+     mid   #5F6F64  (secondary / muted)
+     green #4A934A  (links, borders, primary accent)
+     bg    #F3F8F3  (panel / TOC background)
+   ========================================================= */
+
+/* ---------- Design tokens ---------- */
+:root {
+  --bs-dark:     #2F3437;
+  --bs-mid:      #5F6F64;
+  --bs-green:    #4A934A;
+  --bs-green-dark: #367336;
+  --bs-green-soft: #E8F3E8;
+  --bs-green-pale: #F3F8F3;
+  --bs-light:    #A8B7AA;
+  --bs-lightest: #F3F8F3;
+
+  --text:   #2F3437;
+  --muted:  #5F6F64;
+  --muted-2: #6F8172;
+  --border: #D7E5D7;
+  --panel:  #F3F8F3;
+  --panel-strong: #E8F3E8;
+  --surface: #FFFFFF;
+
+  --toc-width: clamp(200px, 22vw, 280px);
+  --content-pad: 24px;
+  --content-max: 1250px;
+}
+
+/* ---------- Base ---------- */
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--text);
+  display: grid;
+  grid-template-columns: var(--toc-width) 1fr;
+  grid-template-areas: "toc content";
+  background: linear-gradient(90deg, #F8FBF8 0, #FFFFFF 18%, #FFFFFF 100%);
+}
+
+p {
+  margin: 0 0 10px 0;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+strong { color: var(--text); }
+
+a { color: var(--bs-green); text-decoration: none; }
+a:hover { color: var(--bs-green-dark); text-decoration: underline; }
+
+code {
+  background: var(--bs-green-pale);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.88em;
+  color: var(--bs-green-dark);
+  border: 1px solid var(--border);
+}
+
+/* ---------- Layout ---------- */
+.content {
+  grid-area: content;
+  padding: var(--content-pad);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.sections { margin-top: 12px; }
+
+#preamble { margin-top: 20px; }
+
+.preamble {
+  max-width: var(--content-max);
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ---------- TOC ---------- */
+.toc {
+  grid-area: toc;
+  position: sticky;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  background: #F4F5F6;
+  border-right: 1px solid #D1D5DB;
+  padding: 20px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.toc-logo {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 30px;
+}
+
+.toc h2 {
+  margin: 0 0 14px 0;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--bs-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.toc a {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--bs-dark);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.toc a:hover { color: var(--bs-green); }
+
+.toc-item {
+  padding-left: 8px;
+  border-left: 2px solid transparent;
+}
+
+.toc-item.level-1 {
+  padding-left: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toc-item:hover {
+  border-left: 2px solid var(--bs-green);
+  padding-left: 4px;
+  background: rgba(107, 114, 128, 0.08);
+  border-radius: 4px;
+}
+
+.toc-group-title {
+  list-style: none;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.toc-group-title::-webkit-details-marker { display: none; }
+
+.toc-group-title::before {
+  content: "▸";
+  flex: 0 0 14px;
+  width: 14px;
+  text-align: center;
+  color: var(--bs-green);
+  line-height: 1;
+}
+
+.toc-group[open] .toc-group-title::before { content: "▾"; }
+
+.toc-group-title a { display: inline-block; padding: 4px 0; }
+
+.toc-subitems { margin-top: 4px; margin-left: 20px; }
+
+/* ---------- Print button ---------- */
+.print-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--bs-green);
+  background: var(--bs-green);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(27,77,32,0.18);
+  transition: background 0.15s ease;
+}
+
+.print-btn:hover { background: var(--bs-mid); }
+.print-btn:hover { border-color: var(--bs-mid); }
+.print-btn:active { transform: translateY(1px); }
+
+/* ---------- Report title ---------- */
+.report-title {
+  font-size: 38px;
+  line-height: 1.15;
+  margin: 0 0 16px 0;
+  padding-top: 8px;
+  color: var(--bs-green-dark);
+  letter-spacing: -0.02em;
+}
+
+/* ---------- Sections ---------- */
+.section {
+  margin-bottom: 24px;
+  max-width: var(--content-max);
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.section h2 {
+  margin: 20px 0 8px 0;
+  font-size: 22px;
+  color: var(--bs-dark);
+  font-weight: 700;
+  padding-left: 12px;
+  border-left: 4px solid var(--bs-green);
+  background: linear-gradient(90deg, var(--bs-green-pale), transparent 72%);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-radius: 0 6px 6px 0;
+}
+
+.section h3 {
+  margin: 16px 0 6px 0;
+  font-size: 17px;
+  color: var(--bs-green-dark);
+  font-weight: 600;
+  padding-left: 12px;
+}
+
+.section.level-1 { margin-top: 0; }
+
+/* ---------- Stats table ---------- */
+.stats-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 620px;
+  margin: 10px 0 16px 0;
+  font-size: 14px;
+}
+
+.stats-table tr:nth-child(even) { background: var(--bs-green-pale); }
+
+.stat-label {
+  padding: 8px 12px;
+  color: var(--muted);
+  width: 55%;
+}
+
+.stat-value {
+  padding: 8px 12px;
+  font-weight: 600;
+  color: var(--bs-dark);
+}
+
+/* ---------- Plotly containers ---------- */
+.plotly-graph-div {
+  margin-top: 8px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+/* ---------- Footer ---------- */
+.report-footer {
+  margin-top: 80px;
+  padding: 30px 20px;
+  max-width: var(--content-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.footer-divider {
+  border: 0;
+  border-top: 2px solid var(--bs-green);
+  margin-bottom: 24px;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-logo {
+  height: 44px;
+  width: auto;
+}
+
+.footer-tagline {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--bs-mid);
+  font-style: italic;
+}
+
+.footer-meta {
+  margin: 0;
+  font-size: 0.78em;
+  color: var(--muted-2);
+}
+
+/* ---------- Print ---------- */
+@page { size: A4; margin: 12mm; }
+
+@media print {
+  body { display: block; }
+  .toc { display: none !important; }
+  .content { padding: 0 !important; }
+  .print-btn { display: none !important; }
+  .preamble, .section, .report-footer {
+    max-width: none !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  .plotly-graph-div, .preamble, .report-footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .section h2, .section h3 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  body { display: block; }
+  .toc {
+    position: relative;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .report-title { font-size: 28px; }
+  .plotly-graph-div { overflow-x: auto; }
+}
