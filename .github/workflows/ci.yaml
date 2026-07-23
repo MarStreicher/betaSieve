@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  epicv2io:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: src/packages/EpicV2IO/pyproject.toml
+
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+        working-directory: src/packages/EpicV2IO
+      - run: python -m pytest
+        working-directory: src/packages/EpicV2IO
+
+  betasieve:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            src/packages/EpicV2IO/pyproject.toml
+            src/packages/betaSieve/pyproject.toml
+
+      - run: python -m pip install --upgrade pip
+
+      # Install the local epicv2io version.
+      - run: python -m pip install -e "./src/packages/EpicV2IO[dev]"
+
+      # betaSieve-only dependencies; --no-deps avoids fetching epicv2io from GitHub.
+      - run: python -m pip install numpy scipy statsmodels matplotlib plotly
+      - run: python -m pip install --no-deps -e "./src/packages/betaSieve"
+
+      - run: python -m pytest
+        working-directory: src/packages/betaSieve
