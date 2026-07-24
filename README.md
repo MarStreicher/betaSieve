@@ -5,18 +5,36 @@
 <h1 align="left">betaSieve</h1>
 
 <p align="left">
-  Filter-first analysis of EPICv2 duplicate CpG probes
+  EPICv2 probe designs analysis
 </p>
 
-betaSieve is a Python package for identifying probes from Illumina EPICv2 methylation arrays that exhibit high variability between duplicate measurements. To do so, the package evaluates duplicate probe agreement by analyzing beta-value differences for each (CpG site, sample) pair.
+betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing beta-value differences for each (CpG site, sample) pair.
+
+## Why should I care?
+
+EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample. 
+
+<p align="center">
+  <img src="assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
+</p>
+
+<p align="center"><em>
+IlmnID naming and replicate definitions adapted from Peters et al. (2024),
+BMC Genomics 25:251, and Supplementary File 4
+(<a href="https://doi.org/10.1186/s12864-024-10027-5">doi:10.1186/s12864-024-10027-5</a>).
+</em></p>
+
+betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus help to refine downstream analyses. 
+
+Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki) for a more detailed explanation of the background and theory behind this package.
 
 ---
 
 ## Features
 
-- Analysis of EPICv2 duplicate probes
-- Optional threshold sweep across user-defined beta-value differences
-- Identification of highly variable candidate probes
+1. Analysis of EPICv2 IlmnIDs with different probe designs.
+2. Optional threshold sweep across user-defined beta-value differences.
+3. Identification of highly variable candidate IlmnIDs that should be flagged.
 
 ---
 
@@ -27,16 +45,6 @@ betaSieve is a Python package for identifying probes from Illumina EPICv2 methyl
 ```bash
 pip install betasieve
 ```
-
-### Requirements
-
-- Python ≥ 3.9
-- NumPy
-- Pandas
-- SciPy
-- Statsmodels
-- Matplotlib
-- Plotly
 
 Dependencies are installed automatically.
 
@@ -82,24 +90,13 @@ betasieve \
 
 ---
 
-## Data and Annotation Resources
-
-betaSieve depends on [EpicV2IO](https://github.com/MarStreicher/EpicV2IO) for the
-shipped Peters et al. EPICv2 probe-annotation subset (Parquet). That file is a
-**derived column subset** of third-party open materials (not original betaSieve
-content). See EpicV2IO’s [`NOTICE`](https://github.com/MarStreicher/EpicV2IO/blob/main/NOTICE)
-for full provenance.
-
-When you use betaSieve analyses that rely on that annotation, cite Peters et al.
-(2024) as in the [Citation](#citation) section below.
-
 ## Citation
 
 If you use betaSieve in published work, please cite:
 
 > Streicher M. betaSieve: Filter-first analysis of EPICv2 duplicate CpG probes. GitHub repository. 2026.
 
-Please also cite the EPICv2 annotation resource used via EpicV2IO (CC BY 4.0):
+For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also cite:
 
 > Peters TJ, Meyer B, Ryan L, Achinger-Kawecka J, Song J, Campbell EM, Qu W, Nair S, Loi-Luu P, Stricker P, Lim E, Stirzaker C, Clark SJ, Pidsley R. Characterisation and reproducibility of the HumanMethylationEPIC v2.0 BeadChip for DNA methylation profiling. *BMC Genomics*. 2024;25:251. https://doi.org/10.1186/s12864-024-10027-5
 
@@ -107,7 +104,7 @@ Please also cite the EPICv2 annotation resource used via EpicV2IO (CC BY 4.0):
 
 ## License
 
-BSD 3-Clause License (see [`LICENSE`](LICENSE)) covers **this software only**.
+BSD 3-Clause License (see [`LICENSE`](LICENSE)).
 
 ---
 

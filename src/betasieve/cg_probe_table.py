@@ -7,7 +7,6 @@ from typing import Optional
 import pandas as pd
 
 from epicv2io import CgProbeId
-from plotly.graph_objs import Frame
 
 
 class ProbeTableCol(str, Enum):
@@ -87,7 +86,7 @@ class CgProbeTable:
         def _add_exact_replicate_col(frame: pd.DataFrame) -> None:
             design_id_probes = frame.groupby(ProbeTableCol.DESIGN_ID.value)[
                 ProbeTableCol.PROBE.value
-            ].agg(list)
+            ].agg(list) 
             replicate_designs = design_id_probes[design_id_probes.map(len) > 1]
             replicate_labels = pd.Series(
                 DesignGroup.EXACT_REPLICATES.value,
