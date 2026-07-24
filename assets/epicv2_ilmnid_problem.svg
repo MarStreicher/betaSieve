@@ -11,6 +11,10 @@
       .tiny { font-size: 11px; fill: #5F6872; }
       .mono { font-family: "DejaVu Sans Mono", Consolas, monospace; }
       .muted { fill: #6B7280; }
+      .c-tb { fill: #2563EB; }
+      .c-co { fill: #F97316; }
+      .c-type { fill: #DC2626; }
+      .c-rep { fill: #4A934A; }
       .axis { stroke: #8A9096; stroke-width: 1.2; }
       .grid { stroke: #D6D9DD; stroke-width: 1; }
       .arrow { fill: none; stroke: #2F3437; stroke-width: 2; marker-end: url(#arrow); }
@@ -57,18 +61,18 @@
     <text x="440" y="112" font-weight="700">cg12981137</text>
     <text x="440" y="130" class="muted">CpG site / cluster Name</text>
 
-    <text x="650" y="112" fill="#2563EB" font-weight="700">T / B</text>
-    <text x="650" y="130">Assigned Top / Bottom</text>
+    <text x="650" y="112" class="c-tb" font-weight="700">T / B</text>
+    <text x="650" y="130" font-weight="700">Assigned Top / Bottom</text>
     <text x="650" y="146" class="tiny">(not genome + / &#8722; strand)</text>
 
-    <text x="440" y="180" fill="#F97316" font-weight="700">C / O</text>
-    <text x="440" y="198">Converted / Opposite</text>
+    <text x="440" y="180" class="c-co" font-weight="700">C / O</text>
+    <text x="440" y="198" font-weight="700">Converted / Opposite</text>
 
-    <text x="650" y="180" fill="#DC2626" font-weight="700">1 / 2</text>
-    <text x="650" y="198">Infinium Type I / II</text>
+    <text x="650" y="180" class="c-type" font-weight="700">1 / 2</text>
+    <text x="650" y="198" font-weight="700">Infinium Type I / II</text>
 
-    <text x="440" y="232" fill="#4A934A" font-weight="700">Final digit</text>
-    <text x="440" y="250">Exact-probe replicate (Rep_Num)</text>
+    <text x="440" y="232" class="c-rep" font-weight="700">Final digit</text>
+    <text x="440" y="250" font-weight="700">Exact-probe replicate (Rep_Num)</text>
   </g>
 
   <!-- Replicate boxes (red); bottom aligns with table at y=336 -->
