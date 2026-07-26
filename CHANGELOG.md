@@ -2,12 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.0.0] - 2026-MM-DD
+## [0.1.0] - 2026-07-26
 
 ### Added
 
-- Initial public release
 - Duplicate Analysis of EPIC V2 beta files
+- Initial public release
 
 ### Changed
 
