@@ -14,3 +14,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+## [0.2.0] - 2026-07-26
+
+### Added
+
+### Changed
+
+- Change version for PyPI support 
+
+### Fixed
+
