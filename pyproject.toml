@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "betasieve"
 version = "0.1.0"
 description = "Filter-first analysis of EPICv2 duplicate CpG probes."
+readme = "README.md"
 requires-python = ">=3.9"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
