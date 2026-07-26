@@ -1,0 +1,21 @@
+name: env_betasieve
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.9
+  - numpy
+  - pandas>=1.5
+  - pyarrow>=10
+  - openpyxl
+  - scipy
+  - statsmodels
+  - matplotlib
+  - plotly
+  - pip
+  # Dev / test tools
+  - pytest>=7
+  - pytest-cov>=4
+  - black
+  - ruff
+  - pip:
+      - epicv2-io>=0.1.0

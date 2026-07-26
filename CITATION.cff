@@ -1,0 +1,10 @@
+cff-version: 1.0.0
+title: BetaSieve
+message: "If you use this software, please cite it."
+authors:
+  - family-names: Streicher
+    given-names: Marleen
+version: 0.1.0
+date-released: 2026-06-23
+
+! Authors are still missing

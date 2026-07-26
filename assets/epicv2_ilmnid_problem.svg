@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="380" viewBox="0 0 920 380" role="img" aria-labelledby="title desc">
+  <title id="title">EPICv2 IlmnID naming and duplicate probes</title>
+  <desc id="desc">One CpG site can appear as several IlmnID rows with different probe designs and beta values. Suffix characters encode strand, conversion, Infinium type, and replicate number.</desc>
+
+  <defs>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #2F3437; }
+      .h1 { font-size: 16px; font-weight: 700; }
+      .body { font-size: 13px; }
+      .small { font-size: 12px; }
+      .tiny { font-size: 11px; fill: #5F6872; }
+      .mono { font-family: "DejaVu Sans Mono", Consolas, monospace; }
+      .muted { fill: #6B7280; }
+      .c-tb { fill: #2563EB; }
+      .c-co { fill: #F97316; }
+      .c-type { fill: #DC2626; }
+      .c-rep { fill: #4A934A; }
+      .axis { stroke: #8A9096; stroke-width: 1.2; }
+      .grid { stroke: #D6D9DD; stroke-width: 1; }
+      .arrow { fill: none; stroke: #2F3437; stroke-width: 2; marker-end: url(#arrow); }
+      .rep-box { fill: #FEE2E2; stroke: #DC2626; stroke-width: 2; }
+      .rep-title { fill: #B91C1C; font-weight: 700; }
+      .rep-body { fill: #991B1B; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2F3437"/>
+    </marker>
+  </defs>
+
+  <rect width="920" height="380" fill="#FFFFFF"/>
+
+  <!-- Left: beta matrix (same vertical span as right column: 42 → 336) -->
+  <text x="24" y="28" class="h1">Same CpG site, multiple probe designs</text>
+  <rect x="24" y="42" width="360" height="294" fill="#FFFFFF" stroke="#8A9096"/>
+  <line x1="24" y1="86" x2="384" y2="86" class="axis"/>
+  <line x1="224" y1="42" x2="224" y2="336" class="grid"/>
+  <line x1="282" y1="42" x2="282" y2="336" class="grid"/>
+  <line x1="336" y1="42" x2="336" y2="336" class="grid"/>
+  <text x="100" y="72" font-size="15" font-weight="700">IlmnID</text>
+  <text x="242" y="72" font-size="15" font-weight="700">S1</text>
+  <text x="298" y="72" font-size="15" font-weight="700">S2</text>
+  <text x="352" y="72" font-size="15" font-weight="700">&#8230;</text>
+  <g class="mono" font-size="14">
+    <text x="38" y="130">cg12981137_TC11</text><text x="239" y="130">0.40</text><text x="295" y="130">0.51</text><text x="351" y="130">&#8230;</text>
+    <text x="38" y="185">cg12981137_TC12</text><text x="239" y="185">0.42</text><text x="295" y="185">0.50</text><text x="351" y="185">&#8230;</text>
+    <text x="38" y="240">cg12981137_TC21</text><text x="239" y="240">0.80</text><text x="295" y="240">0.79</text><text x="351" y="240">&#8230;</text>
+    <text x="38" y="295">cg12981137_BO11</text><text x="239" y="295">0.20</text><text x="295" y="295">0.18</text><text x="351" y="295">&#8230;</text>
+  </g>
+  <text x="24" y="358" class="body">Four rows share one site ID, but betas can disagree.</text>
+  <text x="24" y="376" class="tiny">Example adapted from Peters et al. (2024), Suppl. File 4.</text>
+
+  <path d="M 400 185 L 424 185" class="arrow"/>
+
+  <!-- Right: IlmnID decode (same vertical span: 42 → 336) -->
+  <text x="440" y="28" class="h1">IlmnID suffix encodes the design</text>
+  <text x="480" y="72" class="mono" font-size="22">
+    <tspan fill="#2F3437">cg12981137_</tspan><tspan fill="#2563EB">T</tspan><tspan fill="#F97316">C</tspan><tspan fill="#DC2626">1</tspan><tspan fill="#4A934A">2</tspan>
+  </text>
+
+  <g class="small">
+    <text x="440" y="112" font-weight="700">cg12981137</text>
+    <text x="440" y="130" class="muted">CpG site / cluster Name</text>
+
+    <text x="650" y="112" class="c-tb" font-weight="700">T / B</text>
+    <text x="650" y="130" font-weight="700">Assigned Top / Bottom</text>
+    <text x="650" y="146" class="tiny">(not genome + / &#8722; strand)</text>
+
+    <text x="440" y="180" class="c-co" font-weight="700">C / O</text>
+    <text x="440" y="198" font-weight="700">Converted / Opposite</text>
+
+    <text x="650" y="180" class="c-type" font-weight="700">1 / 2</text>
+    <text x="650" y="198" font-weight="700">Infinium Type I / II</text>
+
+    <text x="440" y="232" class="c-rep" font-weight="700">Final digit</text>
+    <text x="440" y="250" font-weight="700">Exact-probe replicate (Rep_Num)</text>
+  </g>
+
+  <!-- Replicate boxes (red); bottom aligns with table at y=336 -->
+  <rect x="440" y="268" width="220" height="68" rx="8" class="rep-box"/>
+  <text x="454" y="290" class="small rep-title">Exact replicates</text>
+  <text x="454" y="308" class="tiny rep-body">Same site + same sequence;</text>
+  <text x="454" y="322" class="tiny rep-body">only Rep_Num differs.</text>
+
+  <rect x="676" y="268" width="220" height="68" rx="8" class="rep-box"/>
+  <text x="690" y="290" class="small rep-title">Location replicates</text>
+  <text x="690" y="308" class="tiny rep-body">Same site, different sequences;</text>
+  <text x="690" y="322" class="tiny rep-body">suffix positions 1&#8211;3 differ.</text>
+</svg>
