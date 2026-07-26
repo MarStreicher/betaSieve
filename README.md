@@ -1,5 +1,5 @@
 <p align="right">
-  <img src="assets/betasieve_logo.png" alt="betaSieve logo" width="250">
+  <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/betasieve_logo.png" alt="betaSieve logo" width="250">
 </p>
 
 <h1 align="left">betaSieve</h1>
@@ -15,7 +15,7 @@ betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip
 EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample. 
 
 <p align="center">
-  <img src="assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
+  <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
 </p>
 
 <p align="center"><em>
@@ -203,7 +203,7 @@ The above configuration evaluates:
 
 #### `fdr`
 
-Method used for multiple-testing correction.
+Method used for multiple-testing correction. betaSieve does not implement these procedures itself; it passes the chosen method to [`statsmodels.stats.multitest.multipletests`](https://www.statsmodels.org/stable/generated/statsmodels.stats.multitest.multipletests.html) from the [statsmodels](https://www.statsmodels.org/) package ([source](https://github.com/statsmodels/statsmodels/blob/main/statsmodels/stats/multitest.py)).
 
 Default:
 
@@ -211,7 +211,7 @@ Default:
 fdr="fdr_bh"
 ```
 
-Available methods:
+Available methods (as supported by `statsmodels.stats.multitest.multipletests`):
 
 | Method         | Description                           |
 | -------------- | ------------------------------------- |
