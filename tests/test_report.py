@@ -107,7 +107,7 @@ def test_resource_helpers_read_text_and_embed_images(
     images = resources / "images"
     images.mkdir(parents=True)
     (resources / "template.css").write_text("body {}", encoding="utf-8")
-    (images / "logo_transparent.svg").write_bytes(b"<svg/>")
+    (images / "betasieve_logo_transparent.svg").write_bytes(b"<svg/>")
 
     import betasieve.report.report_generator as report_generator
 
