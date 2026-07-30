@@ -155,7 +155,7 @@ def test_dynamic_sections_reflect_optional_results(
             Col.GROUP: ["Exact replicates"],
             Col.THRESHOLD: [0.1],
             Col.P0: [0.05],
-            Col.PCT_BETA_ADJ_FLAGGED: [0.0],
+            Col.PCT_EMPIR_ADJ_FLAGGED: [0.0],
         }
     )
     sweep = ThresholdSweepSection(sieve_results, sieve_args)

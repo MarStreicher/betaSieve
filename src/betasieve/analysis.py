@@ -50,6 +50,11 @@ class Col(str, Enum):
     P_BETA_ADJUSTED = "p_beta_adj"
     P_BETA_ADJ_FLAG = "p_beta_adj_flagged"
     PCT_BETA_ADJ_FLAGGED = "pct_p_beta_adj_flagged"
+    P_EMPIR = "p_empir"
+    P_EMPIR_FLAG = "p_empir_flagged"
+    P_EMPIR_ADJUSTED = "p_empir_adj"
+    P_EMPIR_ADJ_FLAG = "p_empir_adj_flagged"
+    PCT_EMPIR_ADJ_FLAGGED = "pct_p_empir_adj_flagged"
 
 
 _STAT_META_COLUMNS = frozenset(
@@ -75,6 +80,11 @@ _STAT_META_COLUMNS = frozenset(
         Col.P_BETA_ADJUSTED,
         Col.P_BETA_ADJ_FLAG,
         Col.PCT_BETA_ADJ_FLAGGED,
+        Col.P_EMPIR,
+        Col.P_EMPIR_FLAG,
+        Col.P_EMPIR_ADJUSTED,
+        Col.P_EMPIR_ADJ_FLAG,
+        Col.PCT_EMPIR_ADJ_FLAGGED,
     }
 )
 
@@ -94,7 +104,7 @@ def _create_cpg_list(
     """
     Return all probes in ``cg_by_sample`` whose site belongs to a flagged site.
     """
-    flagged_sites = set(frame.index[frame[Col.P_BETA_ADJ_FLAG]])
+    flagged_sites = set(frame.index[frame[Col.P_EMPIR_ADJ_FLAG]])
     print(f"Number of flagged sites: {len(flagged_sites)}")
 
     probe_index = pd.Series(cg_by_sample.index.astype(str))
@@ -185,6 +195,7 @@ def _add_statistics(
         Col.P_VALUE, confidence, fdr, mask=test_mask
     )
 
+    # empirical upper-tail p-value based on the exact-replicate reference distribution
     p_hat_exact_replicates = np.sort(
         samples_frame.loc[
             samples_frame[Col.GROUP] == DesignGroup.EXACT_REPLICATES.value, Col.P_HAT
@@ -195,22 +206,27 @@ def _add_statistics(
     counts_ge = m - np.searchsorted(
         p_hat_exact_replicates, samples_frame[Col.P_HAT].to_numpy(), side="left"
     )
-    samples_frame[Col.P_BETA] = (1 + counts_ge) / (
+    samples_frame[Col.P_EMPIR] = (1 + counts_ge) / (
         1 + m
     )  # P(p_hat_exact_replicate >= p_hat_other)
-    samples_frame[Col.P_BETA_ADJUSTED] = apply_fdr(
-        Col.P_BETA, confidence, fdr, mask=test_mask
+    samples_frame[Col.P_EMPIR_ADJUSTED] = apply_fdr(
+        Col.P_EMPIR, confidence, fdr, mask=test_mask
     )
+
+    # Beta-Binomial distribution
 
     return samples_frame
 
 
 def _add_flags(frame: pd.DataFrame) -> pd.DataFrame:
     alpha = 1 - frame[Col.CONFIDENCE]
+    test_mask = frame[Col.GROUP] != DesignGroup.EXACT_REPLICATES.value
     frame[Col.P_FLAG] = frame[Col.P_VALUE] < alpha
     frame[Col.P_ADJ_FLAG] = frame[Col.P_ADJUSTED] < alpha
-    frame[Col.P_BETA_FLAG] = frame[Col.P_BETA] < alpha
-    frame[Col.P_BETA_ADJ_FLAG] = frame[Col.P_BETA_ADJUSTED] < alpha
+    frame[Col.P_EMPIR_FLAG] = (frame[Col.P_EMPIR] < alpha) & test_mask
+    frame[Col.P_EMPIR_ADJ_FLAG] = (
+        frame[Col.P_EMPIR_ADJUSTED] < alpha
+    ) & test_mask
     frame[Col.CI_FLAG] = frame[Col.CI_LOWER] > frame[Col.P0]
     return frame
 
@@ -253,7 +269,10 @@ def _flag_rates_by_group(frame: pd.DataFrame) -> pd.DataFrame:
             n_sites=(Col.CI_FLAG, "count"),
             pct_ci_flagged=(Col.CI_FLAG, lambda s: 100.0 * s.mean()),
             pct_p_adj_flagged=(Col.P_ADJ_FLAG, lambda s: 100.0 * s.mean()),
-            pct_p_beta_adj_flagged=(Col.P_BETA_ADJ_FLAG, lambda s: 100.0 * s.mean()),
+            pct_p_empir_adj_flagged=(
+                Col.P_EMPIR_ADJ_FLAG,
+                lambda s: 100.0 * s.mean(),
+            ),
         )
         .reset_index()
     )
@@ -353,14 +372,15 @@ def _find_threshold(
     ci_pct = (
         float(at_chosen[Col.PCT_CI_FLAGGED].iloc[0]) if len(at_chosen) else float("nan")
     )
-    beta_pct = (
-        float(at_chosen[Col.PCT_BETA_ADJ_FLAGGED].iloc[0])
+    empir_pct = (
+        float(at_chosen[Col.PCT_EMPIR_ADJ_FLAGGED].iloc[0])
         if len(at_chosen)
         else float("nan")
     )
     print(
         f"Selected threshold {chosen} "
-        f"(exact replicates: CI flag rate {ci_pct:.2g}%, P_BETA_ADJ flag rate {beta_pct:.2g}%)"
+        f"(exact replicates: CI flag rate {ci_pct:.2g}%, "
+        f"P_EMPIR_ADJ flag rate {empir_pct:.2g}%)"
     )
     return chosen, sweep_df
 
@@ -394,9 +414,7 @@ def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
         threshold = args.threshold
 
     print(f"Computing statistics at threshold {threshold}...")
-    statistics_frame = _add_statistics(
-        diff_frame, threshold, args.fdr, args.confidence
-    )
+    statistics_frame = _add_statistics(diff_frame, threshold, args.fdr, args.confidence)
 
     print("Adding flagged columns...")
     flagged_frame = _add_flags(statistics_frame)

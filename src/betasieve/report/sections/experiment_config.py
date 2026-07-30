@@ -130,11 +130,11 @@ class ConfigResultsSubSection(ReportSubSection):
             ),
             (
                 "Sites flagged",
-                f"{int(flagged[Col.P_BETA_FLAG].sum()):,}",
+                f"{int(flagged[Col.P_EMPIR_FLAG].sum()):,}",
             ),
             (
-                "Sites flagged (FDR-corrected)",
-                f"{int(flagged[Col.P_BETA_ADJ_FLAG].sum()):,}",
+                "Sites flagged (multiple-testing adjusted)",
+                f"{int(flagged[Col.P_EMPIR_ADJ_FLAG].sum()):,}",
             ),
         ]
         return _summary_table_figure(rows)

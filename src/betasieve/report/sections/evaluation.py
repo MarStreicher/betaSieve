@@ -50,6 +50,21 @@ def _bb_thresholds(flagged_frame):
     return x_binom_crit, x_bb_crit, concentration
 
 
+def _empirical_threshold(flagged_frame):
+    er_mask = flagged_frame[Col.GROUP] == DesignGroup.EXACT_REPLICATES
+    values = flagged_frame.loc[er_mask, Col.P_HAT].dropna().to_numpy()
+    n = int(flagged_frame.loc[er_mask, Col.N].iloc[0])
+    alpha = 1.0 - float(flagged_frame[Col.CONFIDENCE].iloc[0])
+    m = len(values)
+
+    for count in range(n + 1):
+        p_hat = count / n
+        p_empirical = (1 + np.count_nonzero(values >= p_hat)) / (m + 1)
+        if p_empirical < alpha:
+            return p_hat
+    return None
+
+
 class EvaluationSection(ReportMainSection):
     @property
     def title(self) -> str:
@@ -58,10 +73,11 @@ class EvaluationSection(ReportMainSection):
     @property
     def description(self) -> str:
         return (
-            "Evaluation of the null distribution used for site-level statistical testing. "
-            "The observed exceedance rate p̂ at exact-replicate sites provides an empirical estimate of the null distribution. "
-            "Under random binomial sampling with rate p₀, these p̂ values are expected to follow a Binomial(n, p₀) distribution. "
-            "Depending on the chosen threshold, the resulting distributions may appear skewed or exhibit overdispersion in the subsequent figures."
+            "Comparison of three null representations for site-level exceedance rates: "
+            "the observed exact-replicate distribution, the Binomial(n, p₀) model, "
+            "and a method-of-moments Beta-Binomial model. The adjusted empirical "
+            "upper-tail test is the primary flagging criterion; the model-based "
+            "distributions are shown as diagnostics."
         )
 
     @property
@@ -76,7 +92,7 @@ class EvaluationSection(ReportMainSection):
 class H0Histogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "Exact Replicates Distribution of p̂ Exact Replicates"
+        return "Empirical and Modelled Exact-Replicate Null Distributions"
 
     @property
     def description(self) -> str:
@@ -88,8 +104,9 @@ class H0Histogram(ReportSubSection):
             "exact-replicate sites for direct comparison with observed counts. "
             "The Beta-Binomial parameters are estimated by the method of moments "
             "from the empirical variance of p̂. "
-            "Vertical lines mark the minimum p̂ at which a one-sided test at "
-            "significance level α would declare a site significant. "
+            "Vertical lines mark the minimum p̂ meeting each unadjusted one-sided "
+            "significance criterion at level α. Final candidate selection additionally "
+            "applies the configured multiple-testing correction."
         )
 
     def _plot(self) -> Figure:
@@ -151,6 +168,7 @@ class H0Histogram(ReportSubSection):
         y_max = float(max(binom_y[1:]))  # skip k=0
 
         x_binom_crit, x_bb_crit, _ = _bb_thresholds(self.results.flagged_frame)
+        x_empirical_crit = _empirical_threshold(self.results.flagged_frame)
         alpha = 1.0 - float(self.results.flagged_frame[Col.CONFIDENCE].iloc[0])
 
         nonzero = values[values > 0]
@@ -160,6 +178,7 @@ class H0Histogram(ReportSubSection):
                     np.quantile(nonzero, 0.99) if len(nonzero) else alpha,
                     x_binom_crit,
                     x_bb_crit,
+                    x_empirical_crit or 0.0,
                 )
             )
             + bin_size
@@ -198,9 +217,20 @@ class H0Histogram(ReportSubSection):
                 )
             )
 
+        if x_empirical_crit is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=[x_empirical_crit, x_empirical_crit],
+                    y=[0, y_max],
+                    mode="lines",
+                    name=f"Empirical threshold (p̂={x_empirical_crit:.3f})",
+                    line=dict(color="#2563EB", width=2, dash="dashdot"),
+                )
+            )
+
         fig_out = _layout_figure(
             fig,
-            title="Observed vs theoretical p̂ distribution — exact-replicate sites",
+            title="Empirical, Binomial, and Beta-Binomial null comparison",
             x_title="p̂ (observed exceedance rate)",
             y_title="Number of exact-replicate sites",
             height=400,
@@ -218,22 +248,22 @@ class H0Histogram(ReportSubSection):
 class AllGroupsThresholdHistogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "p̂ Distribution Across All Design Groups vs Beta-Binomial Threshold"
+        return "p̂ Distribution Across Design Groups and Null Cutoffs"
 
     @property
     def description(self) -> str:
         return (
             "Distribution of the observed exceedance rate p̂ for non-replicate "
-            "design groups (pairs, triplets, quadruplets), with the Beta-Binomial "
-            "significance threshold (green dashed) and Binomial "
-            "threshold (red dashed) overlaid. "
-            "Sites to the right of the Beta-Binomial threshold are declared "
-            "significant. "
+            "design groups (pairs, triplets, quadruplets), with the unadjusted "
+            "empirical, Binomial, and Beta-Binomial significance cutoffs overlaid. "
+            "These lines permit comparison of the three null approaches; final "
+            "discordance calls use the multiple-testing-adjusted empirical p-value."
         )
 
     def _plot(self) -> Figure:
         flagged = self.results.flagged_frame
         x_binom_crit, x_bb_crit, _ = _bb_thresholds(flagged)
+        x_empirical_crit = _empirical_threshold(flagged)
 
         fig = go.Figure()
         all_values = []
@@ -263,7 +293,16 @@ class AllGroupsThresholdHistogram(ReportSubSection):
         fig.update_layout(barmode="overlay")
 
         all_concat = np.concatenate(all_values) if all_values else np.array([0.0])
-        x_max = float(max(np.quantile(all_concat, 0.99), x_bb_crit)) + 0.02
+        x_max = (
+            float(
+                max(
+                    np.quantile(all_concat, 0.99),
+                    x_bb_crit,
+                    x_empirical_crit or 0.0,
+                )
+            )
+            + 0.02
+        )
 
         fig.add_vline(
             x=x_binom_crit,
@@ -311,9 +350,27 @@ class AllGroupsThresholdHistogram(ReportSubSection):
                 )
             )
 
+        if x_empirical_crit is not None:
+            fig.add_vline(
+                x=x_empirical_crit,
+                line_color="#2563EB",
+                line_width=2,
+                line_dash="dashdot",
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="lines",
+                    name=f"Empirical threshold (p̂={x_empirical_crit:.3f})",
+                    line=dict(color="#2563EB", width=2, dash="dashdot"),
+                    showlegend=True,
+                )
+            )
+
         fig_out = _layout_figure(
             fig,
-            title="p̂ distribution by design group with significance thresholds",
+            title="p̂ distribution by design group with three null cutoffs",
             x_title="p̂ (observed exceedance rate)",
             y_title="Number of CpG sites",
             height=420,
@@ -328,18 +385,14 @@ class AllGroupsThresholdHistogram(ReportSubSection):
 class EvaluationSummaryTableSubSection(ReportSubSection):
     @property
     def title(self) -> str:
-        return "Flagging Summary (Classical Tests)"
+        return "Flagging Summary by Statistical Criterion"
 
     @property
     def description(self) -> str:
         return (
-            "Summary of flagged sites under the classical z-test and "
-            "Wilson confidence interval approaches.\n"
-            "<strong>Note:</strong> this table is provided for reference only. "
-            "The primary flagging criterion used by betaSieve is the "
-            "FDR-adjusted permutation p-value, which does not depend "
-            "on this approximation of a normal distribution and is reported in the Analysis Configuration "
-            "section."
+            "Summary of site counts under the empirical upper-tail, classical z-test, "
+            "and Wilson lower-bound criteria. The adjusted empirical upper-tail "
+            "criterion is used to create the candidate list."
         )
 
     def _summary_table(self) -> Figure:
@@ -347,6 +400,14 @@ class EvaluationSummaryTableSubSection(ReportSubSection):
         rows = [
             ("Threshold", round(float(flagged[Col.THRESHOLD].iloc[0]), 4)),
             ("p₀", round(float(flagged[Col.P0].iloc[0]), 4)),
+            (
+                "Sites with empirical flag",
+                f"{int(flagged[Col.P_EMPIR_FLAG].sum()):,}",
+            ),
+            (
+                "Sites with adjusted empirical flag",
+                f"{int(flagged[Col.P_EMPIR_ADJ_FLAG].sum()):,}",
+            ),
             ("Sites with CI flag", f"{int(flagged[Col.CI_FLAG].sum()):,}"),
             ("Sites with p-flag", f"{int(flagged[Col.P_FLAG].sum()):,}"),
             ("Sites with adjusted p-flag", f"{int(flagged[Col.P_ADJ_FLAG].sum()):,}"),

@@ -180,13 +180,13 @@ class P0SubSection(ReportSubSection):
 class BetaSection(ReportSubSection):
     @property
     def title(self) -> str:
-        return "FDR-Adjusted Permutation Flag Rate vs Threshold"
+        return "Adjusted Empirical Flag Rate vs Threshold"
 
     @property
     def description(self) -> str:
         return (
             "Percentage of CpG sites per design group for which the FDR-adjusted "
-            "permutation p-value falls below α, plotted over the "
+            "empirical upper-tail p-value falls below α, plotted over the "
             "threshold candidates. "
             "The dotted vertical line marks the selected threshold."
         )
@@ -197,11 +197,11 @@ class BetaSection(ReportSubSection):
             return _fixed_threshold_placeholder(self.results.threshold)
 
         fig = go.Figure()
-        _add_group_traces(fig, sweep_df, y_column=Col.PCT_BETA_ADJ_FLAGGED)
+        _add_group_traces(fig, sweep_df, y_column=Col.PCT_EMPIR_ADJ_FLAGGED)
         _add_selected_threshold_vline(fig, self.results.threshold)
         return _layout_figure(
             fig,
-            title="FDR-adjusted permutation flag rate vs threshold t",
+            title="Adjusted empirical flag rate vs threshold t",
             x_title="Threshold t",
             y_title="Sites with p-value < α (%)",
             height=400,
