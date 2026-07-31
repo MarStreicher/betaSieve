@@ -216,7 +216,7 @@ def _add_statistics(
     samples_frame[Col.P_VALUE] = null_models.binomial.sf(
         samples_frame[Col.ABOVE].to_numpy()
     )
-    samples_frame[Col.P_VALUE_ADJUSTED] = apply_fdr(
+    samples_frame[Col.P_ADJUSTED] = apply_fdr(
         Col.P_VALUE, confidence, fdr, mask=test_mask
     )
 
