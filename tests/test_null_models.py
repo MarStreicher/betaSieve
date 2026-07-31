@@ -42,25 +42,8 @@ def test_beta_binomial_moments_reproduce_the_p_hat_mean_and_variance() -> None:
 
     assert model.p0 == pytest.approx(p_mean)
     assert model.a + model.b == pytest.approx(p_mean * (1 - p_mean) / variance - 1)
-    assert p_mean * (1 - p_mean) * model.rho == pytest.approx(variance)
-
-
-def test_beta_binomial_moments_degrade_to_binomial_without_variance() -> None:
-    n, p0 = 40, 0.2
-
-    model = BetaBinomialNull.fit_alpha_beta(n, np.full(500, p0))
-
-    np.testing.assert_allclose(
-        model.pmf(np.arange(n + 1)),
-        stats.binom.pmf(np.arange(n + 1), n, p0),
-        atol=1e-3,
-    )
-
-
-def test_beta_binomial_moments_survive_degenerate_references() -> None:
-    for reference in ([], [0.25], [0.0, 0.0], [1.0, 1.0]):
-        model = BetaBinomialNull.fit_alpha_beta(4, reference)
-        assert np.isfinite(model.a) and np.isfinite(model.b)
+    assert model.a == pytest.approx(p_mean * (model.a + model.b))
+    assert model.b == pytest.approx((1 - p_mean) * (model.a + model.b))
 
 
 def test_empirical_sf_and_cutoff_agree() -> None:
@@ -88,7 +71,7 @@ def test_null_models_round_trip_to_dict() -> None:
     assert models.n == 8
     assert payload["binom"] == {"n": 8, "p0": 0.25}
     assert payload["empir"] == {"n": 8, "m": 4}
-    assert set(payload["bb"]) == {"n", "a", "b", "rho", "p0"}
+    assert set(payload["bb"]) == {"n", "a", "b", "p0"}
 
 
 def test_add_statistics_columns_match_the_returned_models(

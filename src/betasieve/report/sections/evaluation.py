@@ -144,7 +144,10 @@ class H0Histogram(ReportSubSection):
                 x=x_pmf,
                 y=bb_y,
                 mode="lines",
-                name=f"Beta-Binomial fit (ρ={models.beta_binomial.rho:.3f})",
+                name=(
+                    f"Beta-Binomial fit "
+                    f"(α={models.beta_binomial.a:.3g}, β={models.beta_binomial.b:.3g})"
+                ),
                 line=dict(color=BS_GREEN, width=2, dash="dot"),
             )
         )
@@ -319,8 +322,7 @@ class EvaluationSummaryTableSubSection(ReportSubSection):
             ("Samples (n)", f"{models.n:,}"),
             (
                 "Beta-Binomial fit",
-                f"α={beta_binomial.a:.4g}, β={beta_binomial.b:.4g}, "
-                f"ρ={beta_binomial.rho:.4f}",
+                f"α={beta_binomial.a:.4g}, β={beta_binomial.b:.4g}",
             ),
             (
                 "Sites with empirical flag",

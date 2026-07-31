@@ -41,7 +41,7 @@ class BetaBinomialNull:
     def fit_alpha_beta(cls, n: int, p_hat_reference: Any) -> "BetaBinomialNull":
         values = np.asarray(p_hat_reference, dtype=float)
         p_mean = float(values.mean()) if values.size else 0.0
-        p_variance = np.sum((p_hat_reference - p_mean) ** 2) / p_hat_reference.size()
+        p_variance = np.sum((p_hat_reference - p_mean) ** 2) / p_hat_reference.size
 
         p_t = (p_mean * (1 - p_mean) / p_variance) - 1
         p_alpha = p_mean * p_t
