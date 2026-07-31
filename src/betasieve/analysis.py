@@ -188,6 +188,7 @@ def _add_statistics(
     samples_frame[Col.CI_LOWER] = (_center - _margin) / _denom
     samples_frame[Col.CI_UPPER] = (_center + _margin) / _denom
 
+    samples_frame[Col.GROUP] = frame[Col.GROUP]
     test_mask = samples_frame[Col.GROUP] != DesignGroup.EXACT_REPLICATES.value
 
     # empirical, beta-binomial, binomial
