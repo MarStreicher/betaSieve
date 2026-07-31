@@ -20,6 +20,7 @@ from betasieve.analysis import (
 )
 from betasieve.cg_probe_table import CgProbeTable, DesignGroup
 from betasieve.config import SieveArgs
+from betasieve.null_models import NullModels
 
 
 def test_diff_value_columns_returns_only_numeric_sample_columns(
@@ -63,7 +64,7 @@ def test_collect_max_min_differences_for_designs_and_replicates() -> None:
 def test_add_statistics_uses_exact_replicates_as_empirical_null(
     diff_frame: pd.DataFrame,
 ) -> None:
-    result = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
+    result, _ = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
 
     assert (result[Col.N] == 4).all()
     assert (result[Col.THRESHOLD] == 0.1).all()
@@ -86,6 +87,8 @@ def test_add_flags_uses_strict_alpha_and_ci_comparisons() -> None:
             Col.P_ADJUSTED: [0.049, 0.051],
             Col.P_EMPIR: [0.049, 0.051],
             Col.P_EMPIR_ADJUSTED: [0.049, 0.051],
+            Col.P_BETA: [0.049, 0.051],
+            Col.P_BETA_ADJUSTED: [0.049, 0.051],
             Col.CI_LOWER: [0.2, 0.1],
             Col.P0: [0.1, 0.1],
         }
@@ -97,6 +100,8 @@ def test_add_flags_uses_strict_alpha_and_ci_comparisons() -> None:
     assert result[Col.P_ADJ_FLAG].tolist() == [True, False]
     assert result[Col.P_EMPIR_FLAG].tolist() == [True, False]
     assert result[Col.P_EMPIR_ADJ_FLAG].tolist() == [True, False]
+    assert result[Col.P_BETA_FLAG].tolist() == [True, False]
+    assert result[Col.P_BETA_ADJ_FLAG].tolist() == [True, False]
     assert result[Col.CI_FLAG].tolist() == [True, False]
 
 
@@ -227,6 +232,9 @@ def test_run_duplicate_analysis_orchestrates_fixed_threshold(
     cg_data = pd.DataFrame({"A": [0.1]}, index=["cg1_TC11"])
     diff = pd.DataFrame({Col.GROUP: ["group"], "A": [0.2]}, index=["cg1"])
     statistics = pd.DataFrame({"stat": [1]}, index=["cg1"])
+    null_models = NullModels.fit(
+        n=1, p0=0.1, p_hat_reference=[0.0], threshold=0.1, confidence=0.95
+    )
     flagged = pd.DataFrame({Col.P_EMPIR_ADJ_FLAG: [True]}, index=["cg1"])
     candidates = pd.Series(["cg1_TC11"], name="IlmnID")
 
@@ -245,7 +253,9 @@ def test_run_duplicate_analysis_orchestrates_fixed_threshold(
         analysis, "_collect_max_min_differences", lambda data, groups: diff
     )
     monkeypatch.setattr(
-        analysis, "_add_statistics", lambda frame, threshold, fdr, confidence: statistics
+        analysis,
+        "_add_statistics",
+        lambda frame, threshold, fdr, confidence: (statistics, null_models),
     )
     monkeypatch.setattr(analysis, "_add_flags", lambda frame: flagged)
     monkeypatch.setattr(
@@ -259,4 +269,5 @@ def test_run_duplicate_analysis_orchestrates_fixed_threshold(
     assert result.statistics_frame is statistics
     assert result.flagged_frame is flagged
     assert result.candidate_cpgs is candidates
+    assert result.null_models is null_models
     assert result.sweep_df is None

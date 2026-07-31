@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from epicv2io import BetasLoader
 from .cg_probe_table import ProbeTableCol, DesignGroup, CgProbeTable
 from .config import SieveArgs, validate_sieve_args
+from .null_models import NullModels
 
 
 @dataclass
@@ -21,6 +22,8 @@ class SieveResults:
     flagged_frame: pd.DataFrame
     sweep_df: Optional[pd.DataFrame] = None
     candidate_cpgs: Optional[pd.Series] = None
+    null_models: Optional[NullModels] = None
+    sieved_betas: pd.DataFrame = None  # TODO
 
 
 class Col(str, Enum):
@@ -126,7 +129,7 @@ def _add_statistics(
     threshold: float,
     fdr: str,
     confidence: float,
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, NullModels]:
 
     def calculate_empirical_background_rate(
         frame: pd.DataFrame, threshold: float
@@ -168,14 +171,13 @@ def _add_statistics(
 
     samples_frame[Col.P0] = calculate_empirical_background_rate(frame, threshold)
 
-    # Z-score
+    # Wilson score confidence interval
     samples_frame[Col.Z_OBS] = (
         samples_frame[Col.P_HAT] - samples_frame[Col.P0]
     ) / np.sqrt(
         samples_frame[Col.P0] * (1 - samples_frame[Col.P0]) / samples_frame[Col.N]
     )
 
-    # Wilson score confidence interval
     _z = samples_frame[Col.Z]
     _p = samples_frame[Col.P_HAT]
     _n = samples_frame[Col.N]
@@ -186,36 +188,39 @@ def _add_statistics(
     samples_frame[Col.CI_LOWER] = (_center - _margin) / _denom
     samples_frame[Col.CI_UPPER] = (_center + _margin) / _denom
 
-    # stats.norm.sf
-    samples_frame[Col.P_VALUE] = stats.norm.sf(samples_frame[Col.Z_OBS].to_numpy())
-
-    samples_frame[Col.GROUP] = frame[Col.GROUP]
     test_mask = samples_frame[Col.GROUP] != DesignGroup.EXACT_REPLICATES.value
-    samples_frame[Col.P_ADJUSTED] = apply_fdr(
-        Col.P_VALUE, confidence, fdr, mask=test_mask
+
+    # empirical, beta-binomial, binomial
+    null_models = NullModels.fit(
+        n=n_samples,
+        p0=float(samples_frame[Col.P0].iloc[0]),
+        p_hat_reference=samples_frame.loc[~test_mask, Col.P_HAT].to_numpy(),
+        threshold=threshold,
+        confidence=confidence,
     )
 
-    # empirical upper-tail p-value based on the exact-replicate reference distribution
-    p_hat_exact_replicates = np.sort(
-        samples_frame.loc[
-            samples_frame[Col.GROUP] == DesignGroup.EXACT_REPLICATES.value, Col.P_HAT
-        ].to_numpy()
+    samples_frame[Col.P_EMPIR] = null_models.empirical.sf(
+        samples_frame[Col.P_HAT].to_numpy()
     )
-
-    m = p_hat_exact_replicates.size
-    counts_ge = m - np.searchsorted(
-        p_hat_exact_replicates, samples_frame[Col.P_HAT].to_numpy(), side="left"
-    )
-    samples_frame[Col.P_EMPIR] = (1 + counts_ge) / (
-        1 + m
-    )  # P(p_hat_exact_replicate >= p_hat_other)
     samples_frame[Col.P_EMPIR_ADJUSTED] = apply_fdr(
         Col.P_EMPIR, confidence, fdr, mask=test_mask
     )
 
-    # Beta-Binomial distribution
+    samples_frame[Col.P_BETA] = null_models.beta_binomial.sf(
+        samples_frame[Col.ABOVE].to_numpy()
+    )
+    samples_frame[Col.P_BETA_ADJUSTED] = apply_fdr(
+        Col.P_BETA, confidence, fdr, mask=test_mask
+    )
 
-    return samples_frame
+    samples_frame[Col.P_VALUE] = null_models.binomial.sf(
+        samples_frame[Col.ABOVE].to_numpy()
+    )
+    samples_frame[Col.P_VALUE_ADJUSTED] = apply_fdr(
+        Col.P_VALUE, confidence, fdr, mask=test_mask
+    )
+
+    return samples_frame, null_models
 
 
 def _add_flags(frame: pd.DataFrame) -> pd.DataFrame:
@@ -224,9 +229,9 @@ def _add_flags(frame: pd.DataFrame) -> pd.DataFrame:
     frame[Col.P_FLAG] = frame[Col.P_VALUE] < alpha
     frame[Col.P_ADJ_FLAG] = frame[Col.P_ADJUSTED] < alpha
     frame[Col.P_EMPIR_FLAG] = (frame[Col.P_EMPIR] < alpha) & test_mask
-    frame[Col.P_EMPIR_ADJ_FLAG] = (
-        frame[Col.P_EMPIR_ADJUSTED] < alpha
-    ) & test_mask
+    frame[Col.P_EMPIR_ADJ_FLAG] = (frame[Col.P_EMPIR_ADJUSTED] < alpha) & test_mask
+    frame[Col.P_BETA_FLAG] = (frame[Col.P_BETA] < alpha) & test_mask
+    frame[Col.P_BETA_ADJ_FLAG] = (frame[Col.P_BETA_ADJUSTED] < alpha) & test_mask
     frame[Col.CI_FLAG] = frame[Col.CI_LOWER] > frame[Col.P0]
     return frame
 
@@ -293,7 +298,7 @@ def _sweep_thresholds(
     )
 
     for threshold in thresholds:
-        statistics_frame = _add_statistics(
+        statistics_frame, _ = _add_statistics(
             diff_frame, float(threshold), fdr, confidence
         )
         P0_value = statistics_frame[Col.P0].unique()[0]
@@ -414,7 +419,9 @@ def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
         threshold = args.threshold
 
     print(f"Computing statistics at threshold {threshold}...")
-    statistics_frame = _add_statistics(diff_frame, threshold, args.fdr, args.confidence)
+    statistics_frame, null_models = _add_statistics(
+        diff_frame, threshold, args.fdr, args.confidence
+    )
 
     print("Adding flagged columns...")
     flagged_frame = _add_flags(statistics_frame)
@@ -429,6 +436,7 @@ def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
         flagged_frame=flagged_frame,
         sweep_df=sweep_df,
         candidate_cpgs=cpg_serie,
+        null_models=null_models,
     )
 
 
