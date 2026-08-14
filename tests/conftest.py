@@ -46,7 +46,7 @@ def diff_frame() -> pd.DataFrame:
 
 @pytest.fixture
 def sieve_results(diff_frame: pd.DataFrame) -> SieveResults:
-    statistics = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
+    statistics, null_models = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
     flagged = _add_flags(statistics)
     return SieveResults(
         diff_frame=diff_frame,
@@ -56,4 +56,5 @@ def sieve_results(diff_frame: pd.DataFrame) -> SieveResults:
         candidate_cpgs=pd.Series(
             ["cg_pair1_TC11", "cg_pair1_TC21"], name="IlmnID"
         ),
+        null_models=null_models,
     )

@@ -88,7 +88,7 @@ class SieveReportGenerator:
             if r.sweep_df is not None
             else "user-specified"
         )
-        n_flagged = int(flagged[Col.P_BETA_ADJ_FLAG].sum())
+        n_flagged = int(flagged[Col.P_EMPIR_ADJ_FLAG].sum())
         pct_flagged = 100.0 * n_flagged / n_sites if n_sites else 0.0
 
         n_flagged_probes = int(len(r.candidate_cpgs))
@@ -124,7 +124,8 @@ class SieveReportGenerator:
             f"correction applied across non-replicate sites. "
             f"<strong>{n_flagged:,}</strong> sites ({pct_flagged:.1f}&#x25;), therefore, "
             f"<strong>{n_flagged_probes}</strong> probes, were "
-            f"flagged as discordant based on the FDR-adjusted permutation p-value.</p>"
+            f"flagged as discordant based on the multiple-testing-adjusted empirical "
+            f"upper-tail p-value.</p>"
         )
 
     def _generate_toc(

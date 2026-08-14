@@ -79,6 +79,13 @@ def build_parser() -> argparse.ArgumentParser:
         dest="threshold_step",
         help="Step size for automatic threshold search.",
     )
+    parser.add_argument(
+        "--target-p0",
+        type=float,
+        default=0.05,
+        dest="target_p0",
+        help="Target exact-replicate background exceedance rate for a threshold sweep.",
+    )
     return parser
 
 

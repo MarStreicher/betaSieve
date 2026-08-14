@@ -1,53 +1,59 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, NamedTuple
 
 import numpy as np
 import plotly.graph_objects as go
 from plotly.graph_objects import Figure
-from scipy import stats
 
-from betasieve.analysis import Col
+from betasieve.analysis import Col, SieveResults
 from betasieve.cg_probe_table import DesignGroup
+from betasieve.null_models import NullModels
 from betasieve.report.domain.mappings import (
     BS_DARK,
     BS_GREEN,
     DESIGN_GROUP_COLORS,
-    REPORT_FONT_FAMILY,
 )
 from betasieve.report.plots import _layout_figure
 from betasieve.report.report_section import ReportMainSection, ReportSubSection
 from betasieve.report.tables import _summary_table_figure
 
 
-def _bb_thresholds(flagged_frame):
-    er_mask = flagged_frame[Col.GROUP] == DesignGroup.EXACT_REPLICATES
-    values = flagged_frame.loc[er_mask, Col.P_HAT].to_numpy()
-    n = int(flagged_frame.loc[er_mask, Col.N].iloc[0])
-    p0 = float(flagged_frame.loc[er_mask, Col.P0].iloc[0])
-    confidence = float(flagged_frame[Col.CONFIDENCE].iloc[0])
-    alpha = 1.0 - confidence
-
-    k_binom = int(stats.binom.ppf(1 - alpha, n, p0)) + 1
-    x_binom_crit = k_binom / n
-
-    emp_var = float(np.var(values, ddof=1))
-    rho = max(0.0, (emp_var * n / (p0 * (1 - p0)) - 1) / (n - 1))
-    concentration = (1.0 / rho - 1.0) if rho > 0 else None
-
-    x_bb_crit = 0.0
-    if concentration is not None:
-        k_bb = (
-            int(
-                stats.betabinom.ppf(
-                    1 - alpha, n, p0 * concentration, (1 - p0) * concentration
-                )
-            )
-            + 1
+def _null_models(results: SieveResults) -> NullModels:
+    if results.null_models is None:
+        raise ValueError(
+            "SieveResults carries no fitted null models. Re-run the analysis; "
+            "results pickled before null_models was introduced cannot be reported "
+            "on without re-fitting, which would risk disagreeing with the "
+            "p-value columns."
         )
-        x_bb_crit = k_bb / n
+    return results.null_models
 
-    return x_binom_crit, x_bb_crit, concentration
+
+class _Cutoff(NamedTuple):
+    label: str
+    p_hat: float
+    color: str
+    dash: str
+
+
+def _null_cutoffs(models: NullModels) -> List[_Cutoff]:
+    alpha = models.alpha
+    specs = (
+        ("Binomial", models.binomial.critical_p_hat(alpha), "red", "dash"),
+        ("Beta-Binomial", models.beta_binomial.critical_p_hat(alpha), BS_GREEN, "dash"),
+        ("Empirical", models.empirical.critical_p_hat(alpha), "#2563EB", "dashdot"),
+    )
+    return [
+        _Cutoff(f"{name} threshold (p̂={p_hat:.3f})", p_hat, color, dash)
+        for name, p_hat, color, dash in specs
+        if p_hat is not None
+    ]
+
+
+def _group_fill(color: str) -> str:
+    r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+    return f"rgba({r},{g},{b},0.4)"
 
 
 class EvaluationSection(ReportMainSection):
@@ -58,10 +64,11 @@ class EvaluationSection(ReportMainSection):
     @property
     def description(self) -> str:
         return (
-            "Evaluation of the null distribution used for site-level statistical testing. "
-            "The observed exceedance rate p̂ at exact-replicate sites provides an empirical estimate of the null distribution. "
-            "Under random binomial sampling with rate p₀, these p̂ values are expected to follow a Binomial(n, p₀) distribution. "
-            "Depending on the chosen threshold, the resulting distributions may appear skewed or exhibit overdispersion in the subsequent figures."
+            "Comparison of three null representations for site-level exceedance rates: "
+            "the observed exact-replicate distribution, the Binomial(n, p₀) model, "
+            "and a method-of-moments Beta-Binomial model. The adjusted empirical "
+            "upper-tail test is the primary flagging criterion; the model-based "
+            "distributions are shown as diagnostics."
         )
 
     @property
@@ -76,7 +83,7 @@ class EvaluationSection(ReportMainSection):
 class H0Histogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "Exact Replicates Distribution of p̂ Exact Replicates"
+        return "Empirical and Modelled Exact-Replicate Null Distributions"
 
     @property
     def description(self) -> str:
@@ -84,125 +91,102 @@ class H0Histogram(ReportSubSection):
             "Observed distribution of the exceedance rate p̂ at exact-replicate "
             "sites (bars), with the fitted Binomial(n, p₀) PMF (dashed black) and "
             "Beta-Binomial PMF (dotted green) overlaid. "
-            "Both theoretical curves are scaled to the total number of "
-            "exact-replicate sites for direct comparison with observed counts. "
+            "All three are expressed as a percentage of exact-replicate sites, so "
+            "bar heights and PMF values are directly comparable. "
             "The Beta-Binomial parameters are estimated by the method of moments "
             "from the empirical variance of p̂. "
-            "Vertical lines mark the minimum p̂ at which a one-sided test at "
-            "significance level α would declare a site significant. "
+            "The y-axis is scaled to the p̂ > 0 range, so the dominant p̂ = 0 bar is "
+            "deliberately clipped. "
+            "Vertical lines mark the minimum p̂ meeting each unadjusted one-sided "
+            "significance criterion at level α. Final candidate selection additionally "
+            "applies the configured multiple-testing correction."
         )
 
     def _plot(self) -> Figure:
+        models = _null_models(self.results)
         df = self.results.flagged_frame
         fig = go.Figure()
 
         er_mask = df[Col.GROUP] == DesignGroup.EXACT_REPLICATES
         values = df.loc[er_mask, Col.P_HAT].to_numpy().ravel()
         color = DESIGN_GROUP_COLORS.get(DesignGroup.EXACT_REPLICATES, BS_GREEN)
-        r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
-        fill = f"rgba({r},{g},{b},0.4)"
 
-        n = int(df.loc[er_mask, Col.N].iloc[0])
-        p0 = float(df.loc[er_mask, Col.P0].iloc[0])
-        N = len(values)
+        n = models.n
         k = np.arange(0, n + 1)
         x_pmf = k / n
-
         bin_size = 1.0 / n
+
         fig.add_trace(
             go.Histogram(
                 x=values,
+                histnorm="percent",
                 name=DesignGroup.EXACT_REPLICATES.value,
-                marker=dict(color=fill, line=dict(color=color, width=2)),
+                marker=dict(color=_group_fill(color), line=dict(color=color, width=2)),
                 opacity=0.7,
                 xbins=dict(start=-bin_size / 2, end=1 + bin_size / 2, size=bin_size),
             )
         )
 
-        binom_y = stats.binom.pmf(k, n, p0) * N
+        binom_y = models.binomial.pmf(k) * 100.0
         fig.add_trace(
             go.Scatter(
                 x=x_pmf,
                 y=binom_y,
                 mode="lines",
-                name=f"Binomial null (p₀={p0:.3f})",
+                name=f"Binomial null (p₀={models.binomial.p0:.3f})",
                 line=dict(color=BS_DARK, width=2, dash="dash"),
             )
         )
 
-        emp_var = float(np.var(values, ddof=1))
-        rho = max(0.0, (emp_var * n / (p0 * (1 - p0)) - 1) / (n - 1))
-        concentration = (1.0 / rho - 1.0) if rho > 0 else None
-        if concentration is not None:
-            bb_y = (
-                stats.betabinom.pmf(k, n, p0 * concentration, (1 - p0) * concentration)
-                * N
+        bb_y = models.beta_binomial.pmf(k) * 100.0
+        fig.add_trace(
+            go.Scatter(
+                x=x_pmf,
+                y=bb_y,
+                mode="lines",
+                name=(
+                    f"Beta-Binomial fit "
+                    f"(α={models.beta_binomial.a:.3g}, β={models.beta_binomial.b:.3g})"
+                ),
+                line=dict(color=BS_GREEN, width=2, dash="dot"),
             )
+        )
+
+        observed_pct = (
+            100.0
+            * np.bincount(np.rint(values * n).astype(int), minlength=n + 1)
+            / max(len(values), 1)
+        )
+        y_max = float(max(binom_y[1:].max(), bb_y[1:].max(), observed_pct[1:].max()))
+
+        cutoffs = _null_cutoffs(models)
+        for cutoff in cutoffs:
             fig.add_trace(
                 go.Scatter(
-                    x=x_pmf,
-                    y=bb_y,
+                    x=[cutoff.p_hat, cutoff.p_hat],
+                    y=[0, y_max],
                     mode="lines",
-                    name=f"Beta-Binomial fit (ρ={rho:.3f})",
-                    line=dict(color=BS_GREEN, width=2, dash="dot"),
+                    name=cutoff.label,
+                    line=dict(color=cutoff.color, width=2, dash=cutoff.dash),
                 )
             )
-
-        y_max = float(max(binom_y[1:]))  # skip k=0
-
-        x_binom_crit, x_bb_crit, _ = _bb_thresholds(self.results.flagged_frame)
-        alpha = 1.0 - float(self.results.flagged_frame[Col.CONFIDENCE].iloc[0])
 
         nonzero = values[values > 0]
         x_max = (
             float(
                 max(
-                    np.quantile(nonzero, 0.99) if len(nonzero) else alpha,
-                    x_binom_crit,
-                    x_bb_crit,
+                    [np.quantile(nonzero, 0.99) if len(nonzero) else models.alpha]
+                    + [cutoff.p_hat for cutoff in cutoffs]
                 )
             )
             + bin_size
         )
 
-        fig.add_trace(
-            go.Scatter(
-                x=[x_binom_crit, x_binom_crit],
-                y=[0, y_max],
-                mode="lines",
-                name=f"Binomial threshold (p̂={x_binom_crit:.3f})",
-                line=dict(color="red", width=2, dash="dash"),
-            )
-        )
-
-        if concentration is not None:
-            # if x_bb_crit > x_binom_crit:
-            #    fig.add_vrect(
-            #        x0=x_binom_crit,
-            #        x1=x_bb_crit,
-            #        fillcolor="rgba(220, 50, 50, 0.12)",
-            #        layer="below",
-            #        line_width=0,
-            #        annotation_text="Binomial only",
-            #        annotation_position="top left",
-            #        annotation_font_size=11,
-            #    )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=[x_bb_crit, x_bb_crit],
-                    y=[0, y_max],
-                    mode="lines",
-                    name=f"Beta-Binomial threshold (p̂={x_bb_crit:.3f})",
-                    line=dict(color=BS_GREEN, width=2, dash="dash"),
-                )
-            )
-
         fig_out = _layout_figure(
             fig,
-            title="Observed vs theoretical p̂ distribution — exact-replicate sites",
+            title="Empirical, Binomial, and Beta-Binomial null comparison",
             x_title="p̂ (observed exceedance rate)",
-            y_title="Number of exact-replicate sites",
+            y_title="% of exact-replicate sites",
             height=400,
         )
         fig_out.update_layout(
@@ -218,29 +202,32 @@ class H0Histogram(ReportSubSection):
 class AllGroupsThresholdHistogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "p̂ Distribution Across All Design Groups vs Beta-Binomial Threshold"
+        return "p̂ Distribution Across Design Groups and Null Cutoffs"
 
     @property
     def description(self) -> str:
         return (
             "Distribution of the observed exceedance rate p̂ for non-replicate "
-            "design groups (pairs, triplets, quadruplets), with the Beta-Binomial "
-            "significance threshold (green dashed) and Binomial "
-            "threshold (red dashed) overlaid. "
-            "Sites to the right of the Beta-Binomial threshold are declared "
-            "significant. "
+            "design groups (pairs, triplets, quadruplets), with the unadjusted "
+            "empirical, Binomial, and Beta-Binomial significance cutoffs overlaid. "
+            "Each group is normalised to its own site count, since the groups differ "
+            "by orders of magnitude in size. "
+            "These lines permit comparison of the three null approaches; final "
+            "discordance calls use the multiple-testing-adjusted empirical p-value."
         )
 
     def _plot(self) -> Figure:
+        models = _null_models(self.results)
         flagged = self.results.flagged_frame
-        x_binom_crit, x_bb_crit, _ = _bb_thresholds(flagged)
+        cutoffs = _null_cutoffs(models)
+        bin_size = 1.0 / models.n
 
         fig = go.Figure()
         all_values = []
 
         for group in DesignGroup:
             if group == DesignGroup.EXACT_REPLICATES:
-                continue  # shown separately in H0Histogram
+                continue
             mask = flagged[Col.GROUP] == group
             values = flagged.loc[mask, Col.P_HAT].dropna().to_numpy()
             if len(values) == 0:
@@ -248,74 +235,59 @@ class AllGroupsThresholdHistogram(ReportSubSection):
             all_values.append(values)
 
             color = DESIGN_GROUP_COLORS.get(group, BS_GREEN)
-            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
-            fill = f"rgba({r},{g},{b},0.4)"
             fig.add_trace(
                 go.Histogram(
                     x=values,
                     name=group.value,
-                    marker=dict(color=fill, line=dict(color=color, width=2)),
+                    histnorm="percent",
+                    marker=dict(
+                        color=_group_fill(color), line=dict(color=color, width=2)
+                    ),
                     opacity=0.7,
-                    nbinsx=60,
+                    # p̂ is discrete on multiples of 1/n; auto-binning would smear
+                    # those atoms unevenly across bins.
+                    xbins=dict(
+                        start=-bin_size / 2, end=1 + bin_size / 2, size=bin_size
+                    ),
                 )
             )
 
         fig.update_layout(barmode="overlay")
 
         all_concat = np.concatenate(all_values) if all_values else np.array([0.0])
-        x_max = float(max(np.quantile(all_concat, 0.99), x_bb_crit)) + 0.02
-
-        fig.add_vline(
-            x=x_binom_crit,
-            line_color="red",
-            line_width=2,
-            line_dash="dash",
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=[None],
-                y=[None],
-                mode="lines",
-                name=f"Binomial threshold (p̂={x_binom_crit:.3f})",
-                line=dict(color="red", width=2, dash="dash"),
-                showlegend=True,
+        x_max = (
+            float(
+                max(
+                    [np.quantile(all_concat, 0.99)]
+                    + [cutoff.p_hat for cutoff in cutoffs]
+                )
             )
+            + 0.02
         )
 
-        if x_bb_crit > 0:
-            # if x_bb_crit > x_binom_crit:
-            #    fig.add_vrect(
-            #        x0=x_binom_crit,
-            #        x1=x_bb_crit,
-            #        fillcolor="rgba(220, 50, 50, 0.10)",
-            #        layer="below",
-            #        line_width=0,
-            #        annotation_text="Binomial only",
-            #        annotation_position="top left",
-            #        annotation_font_size=11,
-            #    )
+        for cutoff in cutoffs:
             fig.add_vline(
-                x=x_bb_crit,
-                line_color=BS_GREEN,
+                x=cutoff.p_hat,
+                line_color=cutoff.color,
                 line_width=2,
-                line_dash="dash",
+                line_dash=cutoff.dash,
             )
             fig.add_trace(
                 go.Scatter(
                     x=[None],
                     y=[None],
                     mode="lines",
-                    name=f"Beta-Binomial threshold (p̂={x_bb_crit:.3f})",
-                    line=dict(color=BS_GREEN, width=2, dash="dash"),
+                    name=cutoff.label,
+                    line=dict(color=cutoff.color, width=2, dash=cutoff.dash),
                     showlegend=True,
                 )
             )
 
         fig_out = _layout_figure(
             fig,
-            title="p̂ distribution by design group with significance thresholds",
+            title="p̂ distribution by design group with three null cutoffs",
             x_title="p̂ (observed exceedance rate)",
-            y_title="Number of CpG sites",
+            y_title="% of sites in design group",
             height=420,
         )
         fig_out.update_layout(xaxis=dict(range=[0, x_max]))
@@ -328,25 +300,42 @@ class AllGroupsThresholdHistogram(ReportSubSection):
 class EvaluationSummaryTableSubSection(ReportSubSection):
     @property
     def title(self) -> str:
-        return "Flagging Summary (Classical Tests)"
+        return "Flagging Summary by Statistical Criterion"
 
     @property
     def description(self) -> str:
         return (
-            "Summary of flagged sites under the classical z-test and "
-            "Wilson confidence interval approaches.\n"
-            "<strong>Note:</strong> this table is provided for reference only. "
-            "The primary flagging criterion used by betaSieve is the "
-            "FDR-adjusted permutation p-value, which does not depend "
-            "on this approximation of a normal distribution and is reported in the Analysis Configuration "
-            "section."
+            "Fitted null parameters and site counts under the empirical upper-tail, "
+            "Beta-Binomial, classical z-test, and Wilson lower-bound criteria. "
+            "The adjusted empirical upper-tail criterion is used to create the "
+            "candidate list."
         )
 
     def _summary_table(self) -> Figure:
+        models = _null_models(self.results)
         flagged = self.results.flagged_frame
+        beta_binomial = models.beta_binomial
         rows = [
-            ("Threshold", round(float(flagged[Col.THRESHOLD].iloc[0]), 4)),
-            ("p₀", round(float(flagged[Col.P0].iloc[0]), 4)),
+            ("Threshold", round(models.threshold, 4)),
+            ("p₀", round(models.binomial.p0, 4)),
+            ("Exact-replicate sites (m)", f"{models.empirical.m:,}"),
+            ("Samples (n)", f"{models.n:,}"),
+            (
+                "Beta-Binomial fit",
+                f"α={beta_binomial.a:.4g}, β={beta_binomial.b:.4g}",
+            ),
+            (
+                "Sites with empirical flag",
+                f"{int(flagged[Col.P_EMPIR_FLAG].sum()):,}",
+            ),
+            (
+                "Sites with adjusted empirical flag",
+                f"{int(flagged[Col.P_EMPIR_ADJ_FLAG].sum()):,}",
+            ),
+            (
+                "Sites with adjusted Beta-Binomial flag",
+                f"{int(flagged[Col.P_BETA_ADJ_FLAG].sum()):,}",
+            ),
             ("Sites with CI flag", f"{int(flagged[Col.CI_FLAG].sum()):,}"),
             ("Sites with p-flag", f"{int(flagged[Col.P_FLAG].sum()):,}"),
             ("Sites with adjusted p-flag", f"{int(flagged[Col.P_ADJ_FLAG].sum()):,}"),

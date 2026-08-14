@@ -20,6 +20,7 @@ from betasieve.analysis import (
 )
 from betasieve.cg_probe_table import CgProbeTable, DesignGroup
 from betasieve.config import SieveArgs
+from betasieve.null_models import NullModels
 
 
 def test_diff_value_columns_returns_only_numeric_sample_columns(
@@ -63,15 +64,15 @@ def test_collect_max_min_differences_for_designs_and_replicates() -> None:
 def test_add_statistics_uses_exact_replicates_as_empirical_null(
     diff_frame: pd.DataFrame,
 ) -> None:
-    result = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
+    result, _ = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
 
     assert (result[Col.N] == 4).all()
     assert (result[Col.THRESHOLD] == 0.1).all()
     np.testing.assert_allclose(result[Col.P0], 3 / 8)
     assert result.loc["cg_pair1", Col.ABOVE] == 4
     assert result.loc["cg_pair1", Col.P_HAT] == pytest.approx(1.0)
-    assert result.loc["cg_pair1", Col.P_BETA] == pytest.approx(1 / 3)
-    assert result.loc["cg_pair2", Col.P_BETA] == pytest.approx(1.0)
+    assert result.loc["cg_pair1", Col.P_EMPIR] == pytest.approx(1 / 3)
+    assert result.loc["cg_pair2", Col.P_EMPIR] == pytest.approx(1.0)
     assert result.loc["cg_er1", Col.P_ADJUSTED] == result.loc["cg_er1", Col.P_VALUE]
     assert np.isfinite(result[Col.CI_LOWER]).all()
     assert np.isfinite(result[Col.CI_UPPER]).all()
@@ -81,8 +82,11 @@ def test_add_flags_uses_strict_alpha_and_ci_comparisons() -> None:
     frame = pd.DataFrame(
         {
             Col.CONFIDENCE: [0.95, 0.95],
+            Col.GROUP: [DesignGroup.PAIR_TYPE.value] * 2,
             Col.P_VALUE: [0.049, 0.051],
             Col.P_ADJUSTED: [0.049, 0.051],
+            Col.P_EMPIR: [0.049, 0.051],
+            Col.P_EMPIR_ADJUSTED: [0.049, 0.051],
             Col.P_BETA: [0.049, 0.051],
             Col.P_BETA_ADJUSTED: [0.049, 0.051],
             Col.CI_LOWER: [0.2, 0.1],
@@ -94,6 +98,8 @@ def test_add_flags_uses_strict_alpha_and_ci_comparisons() -> None:
 
     assert result[Col.P_FLAG].tolist() == [True, False]
     assert result[Col.P_ADJ_FLAG].tolist() == [True, False]
+    assert result[Col.P_EMPIR_FLAG].tolist() == [True, False]
+    assert result[Col.P_EMPIR_ADJ_FLAG].tolist() == [True, False]
     assert result[Col.P_BETA_FLAG].tolist() == [True, False]
     assert result[Col.P_BETA_ADJ_FLAG].tolist() == [True, False]
     assert result[Col.CI_FLAG].tolist() == [True, False]
@@ -101,7 +107,7 @@ def test_add_flags_uses_strict_alpha_and_ci_comparisons() -> None:
 
 def test_create_cpg_list_returns_all_probe_instances_at_flagged_sites() -> None:
     flagged = pd.DataFrame(
-        {Col.P_BETA_ADJ_FLAG: [True, False]},
+        {Col.P_EMPIR_ADJ_FLAG: [True, False]},
         index=["cg1", "cg2"],
     )
     cg_by_sample = pd.DataFrame(
@@ -117,7 +123,7 @@ def test_create_cpg_list_returns_all_probe_instances_at_flagged_sites() -> None:
 
 def test_create_cpg_list_raises_when_no_candidates_match() -> None:
     flagged = pd.DataFrame(
-        {Col.P_BETA_ADJ_FLAG: [True]},
+        {Col.P_EMPIR_ADJ_FLAG: [True]},
         index=["cg_missing"],
     )
     cg_by_sample = pd.DataFrame({"A": [0.1]}, index=["cg1_TC11"])
@@ -132,7 +138,7 @@ def test_flag_rates_by_group_calculates_counts_and_percentages() -> None:
             Col.GROUP: ["g1", "g1", "g2"],
             Col.CI_FLAG: [True, False, True],
             Col.P_ADJ_FLAG: [False, False, True],
-            Col.P_BETA_ADJ_FLAG: [True, True, False],
+            Col.P_EMPIR_ADJ_FLAG: [True, True, False],
         }
     )
 
@@ -141,7 +147,7 @@ def test_flag_rates_by_group_calculates_counts_and_percentages() -> None:
     assert result.loc["g1", "n_sites"] == 2
     assert result.loc["g1", Col.PCT_CI_FLAGGED] == pytest.approx(50.0)
     assert result.loc["g1", Col.PCT_P_ADJ_FLAGGED] == pytest.approx(0.0)
-    assert result.loc["g1", Col.PCT_BETA_ADJ_FLAGGED] == pytest.approx(100.0)
+    assert result.loc["g1", Col.PCT_EMPIR_ADJ_FLAGGED] == pytest.approx(100.0)
 
 
 def test_sweep_thresholds_includes_end_point(
@@ -226,7 +232,10 @@ def test_run_duplicate_analysis_orchestrates_fixed_threshold(
     cg_data = pd.DataFrame({"A": [0.1]}, index=["cg1_TC11"])
     diff = pd.DataFrame({Col.GROUP: ["group"], "A": [0.2]}, index=["cg1"])
     statistics = pd.DataFrame({"stat": [1]}, index=["cg1"])
-    flagged = pd.DataFrame({Col.P_BETA_ADJ_FLAG: [True]}, index=["cg1"])
+    null_models = NullModels.fit(
+        n=1, p0=0.1, p_hat_reference=[0.0], threshold=0.1, confidence=0.95
+    )
+    flagged = pd.DataFrame({Col.P_EMPIR_ADJ_FLAG: [True]}, index=["cg1"])
     candidates = pd.Series(["cg1_TC11"], name="IlmnID")
 
     class FakeLoader:
@@ -244,7 +253,9 @@ def test_run_duplicate_analysis_orchestrates_fixed_threshold(
         analysis, "_collect_max_min_differences", lambda data, groups: diff
     )
     monkeypatch.setattr(
-        analysis, "_add_statistics", lambda frame, threshold, fdr, confidence: statistics
+        analysis,
+        "_add_statistics",
+        lambda frame, threshold, fdr, confidence: (statistics, null_models),
     )
     monkeypatch.setattr(analysis, "_add_flags", lambda frame: flagged)
     monkeypatch.setattr(
@@ -258,4 +269,5 @@ def test_run_duplicate_analysis_orchestrates_fixed_threshold(
     assert result.statistics_frame is statistics
     assert result.flagged_frame is flagged
     assert result.candidate_cpgs is candidates
+    assert result.null_models is null_models
     assert result.sweep_df is None

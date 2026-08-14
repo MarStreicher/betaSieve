@@ -40,7 +40,7 @@ class MinMaxDiffCsvSubSection(ReportSubSection):
     def description(self) -> str:
         return (
             "Main results file with one row per CpG site. "
-            f"The primary flag column is <code>{Col.P_BETA_ADJ_FLAG.value}</code>. "
+            f"The primary flag column is <code>{Col.P_EMPIR_ADJ_FLAG.value}</code>. "
             "Sites where the entry is <code>True</code> are considered discordant."
         )
 
@@ -71,17 +71,17 @@ class MinMaxDiffCsvSubSection(ReportSubSection):
             (Col.P_ADJ_FLAG.value, "True if p_adjusted < α (reference only)."),
             (Col.CI_FLAG.value, "True if ci_lower > p₀ (reference only)."),
             (
-                Col.P_BETA.value,
-                "Permutation p-value against exact-replicate null distribution.",
+                Col.P_EMPIR.value,
+                "Empirical upper-tail p-value against the exact-replicate reference distribution.",
             ),
-            (Col.P_BETA_FLAG.value, "True if p_beta < α."),
+            (Col.P_EMPIR_FLAG.value, "True if p_empir < α."),
             (
-                Col.P_BETA_ADJUSTED.value,
-                "FDR-adjusted permutation p-value (primary criterion).",
+                Col.P_EMPIR_ADJUSTED.value,
+                "Multiple-testing-adjusted empirical p-value (primary criterion).",
             ),
             (
-                Col.P_BETA_ADJ_FLAG.value,
-                "True if p_beta_adj < α — site is discordant.",
+                Col.P_EMPIR_ADJ_FLAG.value,
+                "True if p_empir_adj < α — site is discordant.",
             ),
             (
                 "<sample_id>",
@@ -112,7 +112,7 @@ class SweepSummaryCsvSubSection(ReportSubSection):
             ("n_sites", "Number of CpG sites in this group."),
             (Col.THRESHOLD.value, "Candidate threshold t."),
             (Col.P0.value, "Background exceedance rate at this threshold."),
-            ("pct_p_beta_adj_flagged", "% of sites with p_beta_adj < α."),
+            ("pct_p_empir_adj_flagged", "% of sites with p_empir_adj < α."),
             ("pct_p_adj_flagged", "% of sites with p_adjusted < α (reference)."),
             ("pct_ci_flagged", "% of sites with ci_lower > p₀ (reference)."),
         ]
