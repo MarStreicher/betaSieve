@@ -303,7 +303,7 @@ Default:
 target_p0=0.05
 ```
 
-`target_p0` can currently be set through the Python API. Command-line runs use the default value.
+Set this parameter through the Python API or with the command-line option `--target-p0`.
 
 ---
 

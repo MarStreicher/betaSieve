@@ -59,6 +59,7 @@ class SieveArgs:
             threshold_min=namespace.threshold_min,
             threshold_max=namespace.threshold_max,
             threshold_step=namespace.threshold_step,
+            target_p0=getattr(namespace, "target_p0", 0.05),
             out_dir=namespace.out_dir,
             report=namespace.report,
             pkl=getattr(namespace, "pkl", False),

@@ -146,6 +146,7 @@ def test_parser_defaults_to_automatic_threshold_search(tmp_path: Path) -> None:
     assert namespace.threshold_min == 0.01
     assert namespace.threshold_max == 0.1
     assert namespace.threshold_step == 0.01
+    assert namespace.target_p0 == 0.05
     assert namespace.report is True
     assert namespace.pkl is False
 
@@ -162,6 +163,8 @@ def test_parser_accepts_boolean_and_analysis_options(tmp_path: Path) -> None:
             "0.9",
             "--fdr",
             "holm",
+            "--target-p0",
+            "0.03",
             "--no-report",
             "--pkl",
         ]
@@ -170,6 +173,7 @@ def test_parser_accepts_boolean_and_analysis_options(tmp_path: Path) -> None:
     assert namespace.threshold == 0.2
     assert namespace.confidence == 0.9
     assert namespace.fdr == "holm"
+    assert namespace.target_p0 == 0.03
     assert namespace.report is False
     assert namespace.pkl is True
 
@@ -181,9 +185,20 @@ def test_main_converts_namespace_and_runs_pipeline(
     observed = []
     monkeypatch.setattr(cli, "run_beta_sieve", observed.append)
 
-    cli.main(["--betas", str(betas), "--threshold", "0.2", "--no-report"])
+    cli.main(
+        [
+            "--betas",
+            str(betas),
+            "--threshold",
+            "0.2",
+            "--target-p0",
+            "0.03",
+            "--no-report",
+        ]
+    )
 
     assert len(observed) == 1
     assert observed[0].betas_path == betas
     assert observed[0].threshold == 0.2
+    assert observed[0].target_p0 == 0.03
     assert observed[0].report is False
