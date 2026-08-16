@@ -246,12 +246,10 @@ def _collect_max_min_differences(
     diffs_groups = merged.groupby([ProbeTableCol.SITE_ID, ProbeTableCol.GROUP_COL])[
         sample_cols
     ].agg(lambda frame: frame.max() - frame.min())
-    # diffs_groups = grp_groups.max() - grp_groups.min()
 
     diffs_exact_replicates = merged.groupby(
         [ProbeTableCol.SITE_ID, ProbeTableCol.EXACT_REPLICATE_COL]
     )[sample_cols].agg(lambda frame: frame.max() - frame.min())
-    # diffs_exact_replicates = grp_exact_replicates.max() - grp_exact_replicates.min()
 
     index_names = [ProbeTableCol.SITE_ID.value, Col.GROUP.value]
     diffs_groups.index = diffs_groups.index.set_names(index_names)
