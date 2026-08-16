@@ -243,15 +243,15 @@ def _collect_max_min_differences(
     sample_cols = cg_by_sample.columns.tolist()
     merged = cg_by_sample.join(cg_by_group, how="inner")
 
-    grp_groups = merged.groupby([ProbeTableCol.SITE_ID, ProbeTableCol.GROUP_COL])[
+    diffs_groups = merged.groupby([ProbeTableCol.SITE_ID, ProbeTableCol.GROUP_COL])[
         sample_cols
-    ]
-    diffs_groups = grp_groups.max() - grp_groups.min()
+    ].agg(lambda frame: frame.max() - frame.min())
+    # diffs_groups = grp_groups.max() - grp_groups.min()
 
-    grp_exact_replicates = merged.groupby(
+    diffs_exact_replicates = merged.groupby(
         [ProbeTableCol.SITE_ID, ProbeTableCol.EXACT_REPLICATE_COL]
-    )[sample_cols]
-    diffs_exact_replicates = grp_exact_replicates.max() - grp_exact_replicates.min()
+    )[sample_cols].agg(lambda frame: frame.max() - frame.min())
+    # diffs_exact_replicates = grp_exact_replicates.max() - grp_exact_replicates.min()
 
     index_names = [ProbeTableCol.SITE_ID.value, Col.GROUP.value]
     diffs_groups.index = diffs_groups.index.set_names(index_names)
@@ -406,6 +406,10 @@ def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
     diff_frame = _collect_max_min_differences(cg_by_sample, cg_by_group)
 
     if args.threshold is None:
+        assert args.threshold_min is not None
+        assert args.threshold_max is not None
+        assert args.threshold_step is not None
+
         threshold, sweep_df = _find_threshold(
             diff_frame,
             threshold_min=args.threshold_min,
