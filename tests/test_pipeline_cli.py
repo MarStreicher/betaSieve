@@ -6,11 +6,11 @@ import pytest
 
 from betasieve import cli, pipeline
 from betasieve.analysis import Col, SieveResults
-from betasieve.config import SieveArgs
+from betasieve.config import ReportConfig
 
 
 def test_write_csv_outputs_writes_all_available_frames(
-    sieve_args: SieveArgs,
+    sieve_args: ReportConfig,
     sieve_results: SieveResults,
 ) -> None:
     sieve_results.sweep_df = pd.DataFrame({Col.THRESHOLD: [0.1], Col.P0: [0.05]})
@@ -29,7 +29,7 @@ def test_write_csv_outputs_writes_all_available_frames(
 
 
 def test_write_csv_outputs_omits_optional_frames(
-    sieve_args: SieveArgs,
+    sieve_args: ReportConfig,
     sieve_results: SieveResults,
 ) -> None:
     sieve_results.sweep_df = None
@@ -43,7 +43,7 @@ def test_write_csv_outputs_omits_optional_frames(
 
 
 def test_pickle_intermediate_results_round_trips_payloads(
-    sieve_args: SieveArgs,
+    sieve_args: ReportConfig,
     sieve_results: SieveResults,
 ) -> None:
     pipeline._pickle_intermediate_results(sieve_args, sieve_results)
@@ -60,7 +60,7 @@ def test_pickle_intermediate_results_round_trips_payloads(
 
 
 def test_write_report_builds_generator(
-    sieve_args: SieveArgs,
+    sieve_args: ReportConfig,
     sieve_results: SieveResults,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -90,7 +90,7 @@ def test_write_report_builds_generator(
     [(False, False), (True, True)],
 )
 def test_run_beta_sieve_orchestrates_optional_outputs(
-    sieve_args: SieveArgs,
+    sieve_args: ReportConfig,
     sieve_results: SieveResults,
     monkeypatch: pytest.MonkeyPatch,
     write_pickle: bool,
@@ -101,12 +101,22 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
     calls = []
 
     monkeypatch.setattr(
-        pipeline, "validate_sieve_args", lambda args: calls.append("validate")
+        pipeline, "validate_report_config", lambda args: calls.append("validate")
     )
+
+    class FakeLoader:
+        def __init__(self, path):
+            assert path == sieve_args.betas_path
+
+        def load_data(self):
+            calls.append("load")
+            return "betas"
+
+    monkeypatch.setattr(pipeline, "BetasLoader", FakeLoader)
     monkeypatch.setattr(
         pipeline,
-        "run_duplicate_analysis",
-        lambda args: calls.append("analyze") or sieve_results,
+        "sieve_betas",
+        lambda betas, config: calls.append("analyze") or sieve_results,
     )
     monkeypatch.setattr(
         pipeline,
@@ -126,7 +136,7 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
 
     result = pipeline.run_beta_sieve(sieve_args)
 
-    expected = ["validate", "analyze"]
+    expected = ["validate", "load", "analyze"]
     if write_pickle:
         expected.append("pickle")
     expected.append("csv")
@@ -134,7 +144,6 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
         expected.append("report")
     assert calls == expected
     assert result is sieve_results
-    assert sieve_args.out_dir.is_dir()
 
 
 def test_parser_defaults_to_automatic_threshold_search(tmp_path: Path) -> None:
@@ -199,6 +208,6 @@ def test_main_converts_namespace_and_runs_pipeline(
 
     assert len(observed) == 1
     assert observed[0].betas_path == betas
-    assert observed[0].threshold == 0.2
-    assert observed[0].target_p0 == 0.03
+    assert observed[0].analysis.threshold == 0.2
+    assert observed[0].analysis.target_p0 == 0.03
     assert observed[0].report is False

@@ -42,29 +42,31 @@ class ConfigSubSection(ReportSubSection):
 
     def _summary_table(self) -> Figure:
         args = self.args
+        config = args.analysis
 
         rows = [
             ("Betas file", str(args.betas_path)),
             (
-                ("Threshold", str(args.threshold))
-                if args.threshold is not None
+                ("Threshold", str(config.threshold))
+                if config.threshold is not None
                 else ("Threshold", "not used (threshold sweep)")
             ),
-            ("Confidence", str(args.confidence)),
-            ("FDR method", args.fdr),
+            ("Confidence", str(config.confidence)),
+            ("FDR method", config.fdr),
             (
                 "Target p₀ (threshold sweep)",
                 (
-                    str(args.target_p0)
-                    if args.threshold is None
+                    str(config.target_p0)
+                    if config.threshold is None
                     else "not used (fixed threshold)"
                 ),
             ),
             (
                 "Threshold sweep min / max / step",
                 (
-                    f"{args.threshold_min} / {args.threshold_max} / {args.threshold_step}"
-                    if args.threshold_min is not None
+                    f"{config.threshold_min} / {config.threshold_max} / "
+                    f"{config.threshold_step}"
+                    if config.threshold_min is not None
                     else "not used (fixed threshold)"
                 ),
             ),
@@ -93,6 +95,7 @@ class ConfigResultsSubSection(ReportSubSection):
 
     def _summary_table(self) -> Figure:
         args = self.args
+        config = args.analysis
         flagged = self.results.flagged_frame
         group = flagged[Col.GROUP]
 
@@ -119,7 +122,7 @@ class ConfigResultsSubSection(ReportSubSection):
                 f"{DesignGroup.EXACT_REPLICATES.value} sites",
                 int((group == DesignGroup.EXACT_REPLICATES).sum()),
             ),
-            ("FDR correction method", args.fdr),
+            ("FDR correction method", config.fdr),
             (
                 "Selected threshold t",
                 round(float(flagged[Col.THRESHOLD].iloc[0]), 4),

@@ -1,6 +1,6 @@
 from enum import Enum
-from pathlib import Path
 from typing import List, Optional, Tuple
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -8,9 +8,8 @@ from scipy import stats
 from statsmodels.stats.multitest import multipletests
 from dataclasses import dataclass
 
-from epicv2io import BetasLoader
 from .cg_probe_table import ProbeTableCol, DesignGroup, CgProbeTable
-from .config import SieveArgs, validate_sieve_args
+from .config import SieveConfig, validate_sieve_config
 from .null_models import NullModels
 
 
@@ -20,10 +19,10 @@ class SieveResults:
     threshold: float
     statistics_frame: pd.DataFrame
     flagged_frame: pd.DataFrame
+    sieved_betas: pd.DataFrame
+    candidate_cpgs: pd.Series
+    null_models: NullModels
     sweep_df: Optional[pd.DataFrame] = None
-    candidate_cpgs: Optional[pd.Series] = None
-    null_models: Optional[NullModels] = None
-    sieved_betas: pd.DataFrame = None  # TODO
 
 
 class Col(str, Enum):
@@ -58,6 +57,66 @@ class Col(str, Enum):
     P_EMPIR_ADJUSTED = "p_empir_adj"
     P_EMPIR_ADJ_FLAG = "p_empir_adj_flagged"
     PCT_EMPIR_ADJ_FLAGGED = "pct_p_empir_adj_flagged"
+
+
+def _validate_betas_frame(cg_by_sample: pd.DataFrame) -> None:
+    errors: List[str] = []
+
+    if not isinstance(cg_by_sample, pd.DataFrame):
+        raise TypeError(
+            "cg_by_sample must be a pandas.DataFrame, "
+            f"got {type(cg_by_sample).__name__}."
+        )
+
+    if cg_by_sample.empty:
+        errors.append("cg_by_sample must contain at least one probe and one sample.")
+    if not cg_by_sample.index.is_unique:
+        errors.append("probe IDs in the index must be unique.")
+    if not cg_by_sample.columns.is_unique:
+        errors.append("sample names in the columns must be unique.")
+    if cg_by_sample.index.hasnans:
+        errors.append("probe IDs in the index must not be missing.")
+
+    non_numeric = [
+        str(column)
+        for column in cg_by_sample.columns
+        if not pd.api.types.is_numeric_dtype(cg_by_sample[column])
+    ]
+    if non_numeric:
+        errors.append(
+            "all sample columns must be numeric; non-numeric columns: "
+            + ", ".join(non_numeric)
+            + "."
+        )
+    elif not cg_by_sample.empty:
+        if cg_by_sample.isna().to_numpy().any():
+            errors.append("beta values must not contain missing or infinite values.")
+        else:
+            values = cg_by_sample.to_numpy(dtype=float)
+            if not np.isfinite(values).all():
+                errors.append(
+                    "beta values must not contain missing or infinite values."
+                )
+            elif ((values < 0.0) | (values > 1.0)).any():
+                errors.append("beta values must be between 0 and 1 (inclusive).")
+
+    if len(cg_by_sample.index) > 0 and not cg_by_sample.index.hasnans:
+        probe_ids = pd.Series(cg_by_sample.index.astype(str))
+        try:
+            parsed = CgProbeTable.parse_from_probe_ids(probe_ids)
+        except (TypeError, ValueError):
+            parsed = pd.DataFrame()
+        if len(parsed) != len(probe_ids):
+            errors.append(
+                "every index value must be a valid EPICv2 IlmnID "
+                "(for example, cg00000001_TC11)."
+            )
+
+    if errors:
+        message = "Invalid beta-value DataFrame:\n" + "\n".join(
+            f"  • {error}" for error in errors
+        )
+        raise ValueError(message)
 
 
 _STAT_META_COLUMNS = frozenset(
@@ -112,13 +171,12 @@ def _create_cpg_list(
 
     probe_index = pd.Series(cg_by_sample.index.astype(str))
     site_prefix = probe_index.str.extract(r"^(cg\d+)_", expand=False)
-    final_cpgs = probe_index[site_prefix.isin(flagged_sites)].reset_index(drop=True)
+    final_cpgs = probe_index.loc[site_prefix.isin(flagged_sites)].reset_index(drop=True)
     final_cpgs.name = "IlmnID"
 
     if final_cpgs.empty:
-        raise ValueError(
-            "No candidate CpGs found for flagged sites. Please check implementation."
-        )
+        warnings.warn("No candidate CpGs found for flagged sites.")
+        return final_cpgs
 
     print(f"Number of candidate probe instances: {len(final_cpgs)}")
     return final_cpgs
@@ -153,7 +211,7 @@ def _add_statistics(
             alpha=1 - confidence,
             method=method,
         )
-        result = samples_frame[column].copy()
+        result = samples_frame.loc[:, column].copy()
         result[mask] = p_adj
         return result
 
@@ -348,7 +406,6 @@ def _find_threshold(
     fdr: str,
     confidence: float,
     target_p0: float,
-    out_dir: Path,
 ) -> Tuple[float, pd.DataFrame]:
     print(
         f"Sweeping thresholds from {threshold_min} to {threshold_max} "
@@ -362,11 +419,6 @@ def _find_threshold(
         fdr=fdr,
         confidence=confidence,
     )
-
-    out_dir.mkdir(parents=True, exist_ok=True)
-    sweep_csv = out_dir / "threshold_sweep_summary.csv"
-    sweep_df.to_csv(sweep_csv, index=False)
-    print(f"Threshold sweep summary saved to {sweep_csv}")
 
     chosen = _select_threshold_for_replicates(sweep_df, target_p0)
     at_chosen = sweep_df.loc[
@@ -389,41 +441,52 @@ def _find_threshold(
     return chosen, sweep_df
 
 
-def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
-    validate_sieve_args(args)
+def sieve_betas(
+    cg_by_sample: pd.DataFrame,
+    config: SieveConfig,
+) -> SieveResults:
+    """Run betaSieve on an in-memory IlmnID-by-sample beta-value matrix."""
+    validate_sieve_config(config)
+    _validate_betas_frame(cg_by_sample)
     sweep_df: Optional[pd.DataFrame] = None
-
-    print("Loading data...")
-    loader = BetasLoader(args.betas_path)
-    cg_by_sample = loader.load_data()
 
     print("Building (design) groups based on the IlmnID...")
     cg_by_group = CgProbeTable.from_probe_ids(pd.Series(cg_by_sample.index.tolist()))
 
     print("Computing max-min ranges per site per sample...")
     diff_frame = _collect_max_min_differences(cg_by_sample, cg_by_group)
+    groups = set(diff_frame[Col.GROUP])
+    if DesignGroup.EXACT_REPLICATES.value not in groups:
+        raise ValueError(
+            "The beta-value DataFrame must contain at least one exact-replicate "
+            "probe group to estimate the empirical background rate."
+        )
+    if groups == {DesignGroup.EXACT_REPLICATES.value}:
+        raise ValueError(
+            "The beta-value DataFrame must contain at least one duplicate-design "
+            "probe group to test."
+        )
 
-    if args.threshold is None:
-        assert args.threshold_min is not None
-        assert args.threshold_max is not None
-        assert args.threshold_step is not None
+    if config.threshold is None:
+        assert config.threshold_min is not None
+        assert config.threshold_max is not None
+        assert config.threshold_step is not None
 
         threshold, sweep_df = _find_threshold(
             diff_frame,
-            threshold_min=args.threshold_min,
-            threshold_max=args.threshold_max,
-            threshold_step=args.threshold_step,
-            fdr=args.fdr,
-            confidence=args.confidence,
-            target_p0=args.target_p0,
-            out_dir=args.csv_dir,
+            threshold_min=config.threshold_min,
+            threshold_max=config.threshold_max,
+            threshold_step=config.threshold_step,
+            fdr=config.fdr,
+            confidence=config.confidence,
+            target_p0=config.target_p0,
         )
     else:
-        threshold = args.threshold
+        threshold = config.threshold
 
     print(f"Computing statistics at threshold {threshold}...")
     statistics_frame, null_models = _add_statistics(
-        diff_frame, threshold, args.fdr, args.confidence
+        diff_frame, threshold, config.fdr, config.confidence
     )
 
     print("Adding flagged columns...")
@@ -431,6 +494,8 @@ def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
 
     print("Creating list CpG pd.Series ...")
     cpg_serie = _create_cpg_list(flagged_frame, cg_by_sample)
+
+    sieved_frame = cg_by_sample.loc[~cg_by_sample.index.isin(cpg_serie)]
 
     return SieveResults(
         diff_frame=diff_frame,
@@ -440,11 +505,12 @@ def run_duplicate_analysis(args: SieveArgs) -> SieveResults:
         sweep_df=sweep_df,
         candidate_cpgs=cpg_serie,
         null_models=null_models,
+        sieved_betas=sieved_frame,
     )
 
 
 __all__ = [
     "Col",
     "SieveResults",
-    "run_duplicate_analysis",
+    "sieve_betas",
 ]

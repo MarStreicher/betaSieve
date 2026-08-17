@@ -5,7 +5,7 @@ import pytest
 
 from betasieve.analysis import Col, SieveResults, _add_flags, _add_statistics
 from betasieve.cg_probe_table import DesignGroup
-from betasieve.config import SieveArgs
+from betasieve.config import SieveConfig, ReportConfig
 
 
 @pytest.fixture
@@ -16,10 +16,10 @@ def betas_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def sieve_args(betas_path: Path, tmp_path: Path) -> SieveArgs:
-    return SieveArgs(
+def sieve_args(betas_path: Path, tmp_path: Path) -> ReportConfig:
+    return ReportConfig(
         betas_path=betas_path,
-        threshold=0.1,
+        analysis=SieveConfig(threshold=0.1),
         out_dir=tmp_path / "results",
         report=False,
     )
@@ -53,8 +53,7 @@ def sieve_results(diff_frame: pd.DataFrame) -> SieveResults:
         threshold=0.1,
         statistics_frame=statistics.copy(),
         flagged_frame=flagged,
-        candidate_cpgs=pd.Series(
-            ["cg_pair1_TC11", "cg_pair1_TC21"], name="IlmnID"
-        ),
+        candidate_cpgs=pd.Series(["cg_pair1_TC11", "cg_pair1_TC21"], name="IlmnID"),
         null_models=null_models,
+        sieved_betas=pd.DataFrame(),
     )

@@ -7,6 +7,7 @@ from plotly.graph_objects import Figure
 from betasieve.analysis import Col
 from betasieve.cg_probe_table import DesignGroup
 from betasieve.report.domain.mappings import (
+    BS_DARK,
     BS_GREEN,
     BS_HEATMAP_COLORSCALE,
     DESIGN_GROUP_COLORS,
@@ -42,16 +43,120 @@ class DifferencesSection(ReportMainSection):
             if (self.results.diff_frame[Col.GROUP] == section.GROUP_KEY).any()
         ]
         return [
+            OneDifferencesPercentageHistogram,
+            DifferencesPercentageHistogram,
             DifferencesHistogram,
             DifferencesBoxplot,
             *available_heatmaps,
         ]
 
 
+# TODO: Refine and fix
+class OneDifferencesPercentageHistogram(ReportSubSection):
+    @property
+    def title(self) -> str:
+        return "Relative β-values Range Distribution"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Relative distribution of β-value max–min ranges, comparing exact "
+            "replicates with all non-replicate design groups pooled together. "
+            "Both distributions use the same bin edges."
+        )
+
+    def _plot(self) -> Figure:
+        df = self.results.diff_frame
+        fig = go.Figure()
+
+        value_cols = [column for column in df.columns if column != Col.GROUP]
+        x_max = 0.3
+        shared_bins = dict(start=0, end=x_max, size=x_max / 100)
+
+        exact_mask = df[Col.GROUP] == DesignGroup.EXACT_REPLICATES
+        distributions = (
+            ("Exact replicates", df.loc[exact_mask, value_cols], BS_GREEN),
+            ("Other design groups", df.loc[~exact_mask, value_cols], "#F97316"),
+        )
+
+        for name, subset, color in distributions:
+            values = subset.to_numpy().ravel()
+            values = values[np.isfinite(values)]
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            fill = f"rgba({r},{g},{b},0.4)"
+            fig.add_trace(
+                go.Histogram(
+                    x=values,
+                    histnorm="percent",
+                    name=name,
+                    marker=dict(color=fill, line=dict(color=color, width=2)),
+                    opacity=0.7,
+                    xbins=shared_bins,
+                )
+            )
+        fig.update_layout(barmode="overlay", bargap=0.05, width=700, autosize=False)
+        fig.update_xaxes(range=[0, x_max])
+        return _layout_figure(
+            fig,
+            title="",
+            x_title="β-values max–min range",
+            y_title="Percentage of observations",
+            height=400,
+        )
+
+    def generate(self) -> None:
+        self.figures.append(self._plot())
+
+
+# TODO: Refine and fix (Also the test)
+class DifferencesPercentageHistogram(ReportSubSection):
+    @property
+    def title(self) -> str:
+        return "Relative β-values Range Distribution"
+
+    @property
+    def description(self) -> str:
+        return "TODO"
+
+    def _plot(self) -> Figure:
+        df = self.results.diff_frame
+        fig = go.Figure()
+
+        for group in DesignGroup:
+            sub_df = df[df[Col.GROUP] == group]
+            values = (
+                sub_df.drop(columns=[Col.GROUP], errors="ignore").to_numpy().ravel()
+            )
+            color = DESIGN_GROUP_COLORS.get(group, BS_GREEN)
+            r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+            fill = f"rgba({r},{g},{b},0.4)"
+            fig.add_trace(
+                go.Histogram(
+                    x=values,
+                    histnorm="percent",
+                    name=group.value,
+                    marker=dict(color=fill, line=dict(color=color, width=2)),
+                    opacity=0.7,
+                    nbinsx=40,
+                )
+            )
+        fig.update_layout(barmode="overlay")
+        return _layout_figure(
+            fig,
+            title="Distribution of β-values max–min ranges by design group",
+            x_title="β-values max–min range",
+            y_title="Number of observations",
+            height=400,
+        )
+
+    def generate(self) -> None:
+        self.figures.append(self._plot())
+
+
 class DifferencesHistogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "β-values Range Distribution"
+        return "Absolute β-values Range Distribution"
 
     @property
     def description(self) -> str:

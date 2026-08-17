@@ -12,7 +12,7 @@ betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip
 
 ## Why should I care?
 
-EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample. 
+EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
@@ -24,7 +24,7 @@ BMC Genomics 25:251, and Supplementary File 4
 (<a href="https://doi.org/10.1186/s12864-024-10027-5">doi:10.1186/s12864-024-10027-5</a>).
 </em></p>
 
-betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus help to refine downstream analyses. 
+betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus help to refine downstream analyses.
 
 Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki) for a more detailed explanation of the background and theory behind this package.
 
@@ -109,28 +109,61 @@ Dependencies are installed automatically.
 
 ### Python API
 
-```python
-from pathlib import Path
-from betasieve import SieveArgs, run_beta_sieve
+#### In-memory analysis
 
-args = SieveArgs(
-    betas_path=Path("betas.csv"),
+For an in-memory pandas DataFrame:
+
+```python
+import pandas as pd
+from betasieve import SieveConfig, sieve_betas
+
+betas = pd.read_csv("betas.csv", index_col="IlmnID")
+config = SieveConfig(
     threshold_min=0.03,
     threshold_max=0.07,
     threshold_step=0.01,
 )
 
+results = sieve_betas(betas, config)
+
+print(f"Threshold: {results.threshold}")
+print(f"Candidates: {len(results.candidate_cpgs)}")
+```
+
+`sieve_betas` validates that the DataFrame has unique EPICv2 IlmnIDs in its
+index, unique sample columns, numeric finite beta values in `[0, 1]`, and the
+probe groups required by the statistical model. It performs no file or report
+output.
+
+#### File-based pipeline
+
+To load the beta matrix and write configured outputs through the file-based
+pipeline:
+
+```python
+from pathlib import Path
+from betasieve import SieveConfig, ReportConfig, run_beta_sieve
+
+args = ReportConfig(
+    betas_path=Path("betas.csv"),
+    analysis=SieveConfig(threshold=0.05),
+)
 results = run_beta_sieve(args)
+```
 
-n_candidates = (
-    0 if results.candidate_cpgs is None
-    else len(results.candidate_cpgs)
-)
+`run_beta_sieve` loads `betas_path`, calls `sieve_betas`, and optionally writes
+CSV files, a pickle, and an HTML report. Disable all output while retaining
+file loading with:
 
-print(
-    f"Threshold: {results.threshold}, "
-    f"candidates: {n_candidates}"
+```python
+args = ReportConfig(
+    betas_path=Path("betas.csv"),
+    analysis=SieveConfig(threshold=0.05),
+    csv_files=False,
+    report=False,
+    pkl=False,
 )
+results = run_beta_sieve(args)
 ```
 
 ### Command Line
@@ -165,7 +198,10 @@ BSD 3-Clause License (see [`LICENSE`](LICENSE)).
 
 ## Parameters
 
-betaSieve can be configured either through the Python API (`SieveArgs`) or through the command-line interface.
+Statistical settings belong to `SieveConfig`. The file-based pipeline wraps
+that configuration in `ReportConfig`, which additionally controls input and
+output paths. The command-line interface exposes the same settings as flat
+options such as `--threshold` and `--out-dir`.
 
 ### Required Parameters
 
@@ -311,7 +347,8 @@ Set this parameter through the Python API or with the command-line option `--tar
 
 #### `out_dir`
 
-Directory where all results are written.
+Root directory for enabled file outputs. No output directory is created when
+`csv_files`, `report`, and `pkl` are all disabled.
 
 Default:
 
@@ -327,6 +364,25 @@ results/
 ├── figures/
 ├── report/
 └── pkl/
+```
+
+---
+
+#### `csv_files`
+
+Write site-level statistics, candidate CpGs, and—when applicable—the threshold
+sweep summary as CSV files.
+
+Default:
+
+```python
+csv_files=True
+```
+
+Disable CSV output:
+
+```python
+csv_files=False
 ```
 
 ---
@@ -366,21 +422,23 @@ pkl=False
 ### Fixed Threshold
 
 ```python
-args = SieveArgs(
+args = ReportConfig(
     betas_path=Path("betas.csv"),
-    threshold=0.05,
+    analysis=SieveConfig(threshold=0.05),
 )
 ```
 
 ### Automatic Threshold Search
 
 ```python
-args = SieveArgs(
+args = ReportConfig(
     betas_path=Path("betas.csv"),
-    threshold_min=0.03,
-    threshold_max=0.07,
-    threshold_step=0.01,
-    target_p0=0.05,
+    analysis=SieveConfig(
+        threshold_min=0.03,
+        threshold_max=0.07,
+        threshold_step=0.01,
+        target_p0=0.05,
+    ),
 )
 ```
 

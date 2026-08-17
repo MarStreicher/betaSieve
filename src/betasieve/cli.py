@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .config import VALID_FDR_METHODS, SieveArgs
+from .config import VALID_FDR_METHODS, ReportConfig
 from .pipeline import run_beta_sieve
 
 
@@ -56,7 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--pkl",
         action=argparse.BooleanOptionalAction,
         default=False,
-        help="Write SieveArgs and SieveResults pickles to out-dir/pkl/.",
+        help="Write ReportConfig and SieveResults pickles to out-dir/pkl/.",
     )
     parser.add_argument(
         "--threshold-min",
@@ -92,7 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     namespace = parser.parse_args(argv)
-    run_beta_sieve(SieveArgs.from_namespace(namespace))
+    run_beta_sieve(ReportConfig.from_namespace(namespace))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,11 +14,11 @@ from betasieve.analysis import (
     _flag_rates_by_group,
     _select_threshold_for_replicates,
     _sweep_thresholds,
-    run_duplicate_analysis,
+    sieve_betas,
+    validate_betas_frame,
 )
 from betasieve.cg_probe_table import CgProbeTable, DesignGroup
-from betasieve.config import SieveArgs
-from betasieve.null_models import NullModels
+from betasieve.config import SieveConfig
 
 
 def test_diff_value_columns_returns_only_numeric_sample_columns(
@@ -121,15 +119,18 @@ def test_create_cpg_list_returns_all_probe_instances_at_flagged_sites() -> None:
     assert result.name == "IlmnID"
 
 
-def test_create_cpg_list_raises_when_no_candidates_match() -> None:
+def test_create_cpg_list_warns_when_no_candidates_match() -> None:
     flagged = pd.DataFrame(
         {Col.P_EMPIR_ADJ_FLAG: [True]},
         index=["cg_missing"],
     )
     cg_by_sample = pd.DataFrame({"A": [0.1]}, index=["cg1_TC11"])
 
-    with pytest.raises(ValueError, match="No candidate CpGs"):
-        _create_cpg_list(flagged, cg_by_sample)
+    with pytest.warns(UserWarning, match="No candidate CpGs"):
+        result = _create_cpg_list(flagged, cg_by_sample)
+
+    assert result.empty
+    assert result.name == "IlmnID"
 
 
 def test_flag_rates_by_group_calculates_counts_and_percentages() -> None:
@@ -162,9 +163,7 @@ def test_sweep_thresholds_includes_end_point(
         confidence=0.95,
     )
 
-    assert result[Col.THRESHOLD].unique().tolist() == pytest.approx(
-        [0.05, 0.1, 0.15]
-    )
+    assert result[Col.THRESHOLD].unique().tolist() == pytest.approx([0.05, 0.1, 0.15])
     assert DesignGroup.EXACT_REPLICATES.value in result[Col.GROUP].values
 
 
@@ -198,17 +197,13 @@ def test_select_threshold_falls_back_to_lowest_p0(
 
 
 def test_select_threshold_requires_exact_replicate_results() -> None:
-    sweep = pd.DataFrame(
-        {Col.GROUP: ["other"], Col.THRESHOLD: [0.1], Col.P0: [0.1]}
-    )
+    sweep = pd.DataFrame({Col.GROUP: ["other"], Col.THRESHOLD: [0.1], Col.P0: [0.1]})
 
     with pytest.raises(ValueError, match="No sweep results"):
         _select_threshold_for_replicates(sweep, target_p0=0.05)
 
 
-def test_find_threshold_writes_sweep_csv(
-    diff_frame: pd.DataFrame, tmp_path: Path
-) -> None:
+def test_find_threshold_returns_sweep_results(diff_frame: pd.DataFrame) -> None:
     chosen, sweep = _find_threshold(
         diff_frame,
         threshold_min=0.05,
@@ -217,57 +212,81 @@ def test_find_threshold_writes_sweep_csv(
         fdr="fdr_bh",
         confidence=0.95,
         target_p0=0.4,
-        out_dir=tmp_path / "csv",
     )
 
     assert chosen == pytest.approx(0.05)
-    written = pd.read_csv(tmp_path / "csv" / "threshold_sweep_summary.csv")
-    pd.testing.assert_frame_equal(written, sweep, check_dtype=False)
+    assert not sweep.empty
 
 
-def test_run_duplicate_analysis_orchestrates_fixed_threshold(
-    sieve_args: SieveArgs,
+@pytest.mark.parametrize(
+    ("frame", "message"),
+    [
+        (pd.DataFrame(), "at least one probe and one sample"),
+        (
+            pd.DataFrame({"A": ["not-a-number"]}, index=["cg00000001_TC11"]),
+            "all sample columns must be numeric",
+        ),
+        (
+            pd.DataFrame({"A": [1.1]}, index=["cg00000001_TC11"]),
+            "between 0 and 1",
+        ),
+        (
+            pd.DataFrame(
+                {"A": pd.Series([pd.NA], dtype="Float64").array},
+                index=["cg00000001_TC11"],
+            ),
+            "must not contain missing",
+        ),
+        (
+            pd.DataFrame({"A": [0.1]}, index=["invalid"]),
+            "valid EPICv2 IlmnID",
+        ),
+    ],
+)
+def test_validate_betas_frame_rejects_invalid_frames(
+    frame: pd.DataFrame, message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        validate_betas_frame(frame)
+
+
+def test_sieve_betas_does_not_load_from_disk(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    cg_data = pd.DataFrame({"A": [0.1]}, index=["cg1_TC11"])
-    diff = pd.DataFrame({Col.GROUP: ["group"], "A": [0.2]}, index=["cg1"])
-    statistics = pd.DataFrame({"stat": [1]}, index=["cg1"])
-    null_models = NullModels.fit(
-        n=1, p0=0.1, p_hat_reference=[0.0], threshold=0.1, confidence=0.95
-    )
-    flagged = pd.DataFrame({Col.P_EMPIR_ADJ_FLAG: [True]}, index=["cg1"])
-    candidates = pd.Series(["cg1_TC11"], name="IlmnID")
+    frame = pd.DataFrame({"A": [0.1]}, index=["cg00000001_TC11"])
+    expected = object()
 
-    class FakeLoader:
-        def __init__(self, path):
-            assert path == sieve_args.betas_path
-
-        def load_data(self):
-            return cg_data
-
-    monkeypatch.setattr(analysis, "BetasLoader", FakeLoader)
+    monkeypatch.setattr(analysis, "validate_sieve_config", lambda config: None)
+    monkeypatch.setattr(analysis, "validate_betas_frame", lambda data: None)
     monkeypatch.setattr(
         analysis.CgProbeTable, "from_probe_ids", lambda ids: pd.DataFrame()
     )
     monkeypatch.setattr(
-        analysis, "_collect_max_min_differences", lambda data, groups: diff
+        analysis,
+        "_collect_max_min_differences",
+        lambda data, groups: pd.DataFrame(
+            {
+                Col.GROUP: [
+                    DesignGroup.EXACT_REPLICATES.value,
+                    DesignGroup.PAIR_TYPE.value,
+                ],
+                "A": [0.0, 0.2],
+            },
+            index=["cg0", "cg1"],
+        ),
     )
     monkeypatch.setattr(
         analysis,
         "_add_statistics",
-        lambda frame, threshold, fdr, confidence: (statistics, null_models),
+        lambda *args: (pd.DataFrame(), expected),
     )
-    monkeypatch.setattr(analysis, "_add_flags", lambda frame: flagged)
     monkeypatch.setattr(
-        analysis, "_create_cpg_list", lambda frame, data: candidates
+        analysis,
+        "_add_flags",
+        lambda frame: pd.DataFrame({Col.P_EMPIR_ADJ_FLAG: [False]}, index=["cg1"]),
     )
 
-    result = run_duplicate_analysis(sieve_args)
+    result = sieve_betas(frame, SieveConfig(threshold=0.1))
 
-    assert result.diff_frame is diff
-    assert result.threshold == 0.1
-    assert result.statistics_frame is statistics
-    assert result.flagged_frame is flagged
-    assert result.candidate_cpgs is candidates
-    assert result.null_models is null_models
-    assert result.sweep_df is None
+    assert result.null_models is expected
+    pd.testing.assert_frame_equal(result.sieved_betas, frame)

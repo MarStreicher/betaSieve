@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List, final
 
 if TYPE_CHECKING:
     from betasieve.analysis import SieveResults
-    from betasieve.config import SieveArgs
+    from betasieve.config import ReportConfig
 
 
 class ReportSection(ABC):
@@ -21,7 +21,7 @@ class ReportSection(ABC):
     def id(self) -> str:
         return self.title.lower().replace(" ", "-")
 
-    def __init__(self, results: "SieveResults", args: "SieveArgs") -> None:
+    def __init__(self, results: "SieveResults", args: "ReportConfig") -> None:
         self.results = results
         self.args = args
 
@@ -36,7 +36,7 @@ class ReportMainSection(ReportSection):
     @abstractmethod
     def subsection_types(self) -> List[type["ReportSubSection"]]: ...
 
-    def __init__(self, results: "SieveResults", args: "SieveArgs") -> None:
+    def __init__(self, results: "SieveResults", args: "ReportConfig") -> None:
         super().__init__(results, args)
         self.subsections: List[ReportSubSection] = [
             cls(results, args) for cls in self.subsection_types
@@ -62,7 +62,7 @@ class ReportSubSection(ReportSection):
             f"{type(self).__name__} is a subsection and must not define subsections."
         )
 
-    def __init__(self, results: "SieveResults", args: "SieveArgs") -> None:
+    def __init__(self, results: "SieveResults", args: "ReportConfig") -> None:
         super().__init__(results, args)
         self.figures: list = []
 

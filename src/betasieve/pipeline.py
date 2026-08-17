@@ -1,12 +1,11 @@
 import pickle
 
-from pathlib import Path
+from epicv2io import BetasLoader
+from .analysis import SieveResults, sieve_betas
+from .config import ReportConfig, validate_report_config
 
-from .analysis import SieveResults, run_duplicate_analysis
-from .config import SieveArgs, validate_sieve_args
 
-
-def _pickle_intermediate_results(args: SieveArgs, results: SieveResults):
+def _pickle_intermediate_results(args: ReportConfig, results: SieveResults):
     pkl_dir = args.pkl_dir
     pkl_dir.mkdir(parents=True, exist_ok=True)
 
@@ -14,10 +13,10 @@ def _pickle_intermediate_results(args: SieveArgs, results: SieveResults):
         with open(pkl_dir / (filename + ".pkl"), "wb") as file:
             pickle.dump(payload, file)
 
-    print(f"SieveArgs and SieveResults written to {pkl_dir}.")
+    print(f"ReportConfig and SieveResults written to {pkl_dir}.")
 
 
-def _write_csv_outputs(args: SieveArgs, results: SieveResults) -> None:
+def _write_csv_outputs(args: ReportConfig, results: SieveResults) -> None:
     csv_dir = args.csv_dir
     csv_dir.mkdir(parents=True, exist_ok=True)
 
@@ -33,24 +32,24 @@ def _write_csv_outputs(args: SieveArgs, results: SieveResults) -> None:
     print(f"CSV outputs written to {csv_dir}")
 
 
-def _write_report(args: SieveArgs, results: SieveResults) -> None:
+def _write_report(args: ReportConfig, results: SieveResults) -> None:
     from betasieve.report import SieveReportGenerator
 
     gen = SieveReportGenerator(results, args)
     gen.build_report()
 
 
-def run_beta_sieve(args: SieveArgs) -> SieveResults:
+def run_beta_sieve(args: ReportConfig) -> SieveResults:
+    validate_report_config(args)
 
-    validate_sieve_args(args)
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-
-    results = run_duplicate_analysis(args)
+    cg_by_sample = BetasLoader(args.betas_path).load_data()
+    results = sieve_betas(cg_by_sample, args.analysis)
 
     if args.pkl:
         _pickle_intermediate_results(args, results)
 
-    _write_csv_outputs(args, results)
+    if args.csv_files:
+        _write_csv_outputs(args, results)
 
     if args.report:
         _write_report(args, results)

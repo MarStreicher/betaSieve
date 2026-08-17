@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import pytest
 
 from betasieve.analysis import Col, SieveResults
-from betasieve.config import SieveArgs
+from betasieve.config import ReportConfig
 from betasieve.report.figure_style import configure_matplotlib
 from betasieve.report.plots import _layout_figure
 from betasieve.report.report_generator import (
@@ -17,6 +17,7 @@ from betasieve.report.report_generator import (
     _resources_dir,
 )
 from betasieve.report.report_section import ReportMainSection, ReportSubSection
+from betasieve.report.sections.differences import OneDifferencesPercentageHistogram
 from betasieve.report.sections.output_description import OutputDescriptionSection
 from betasieve.report.sections.threshold_sweep import ThresholdSweepSection
 from betasieve.report.tables import _data_dict_figure, _summary_table_figure
@@ -42,7 +43,7 @@ class ExampleMainSection(ReportMainSection):
 
 
 def test_report_section_ids_and_tree_contracts(
-    sieve_args: SieveArgs, sieve_results: SieveResults
+    sieve_args: ReportConfig, sieve_results: SieveResults
 ) -> None:
     section = ExampleMainSection(sieve_results, sieve_args)
     child = section.subsections[0]
@@ -92,6 +93,24 @@ def test_layout_figure_sets_shared_chart_style() -> None:
     assert figure.layout.showlegend is False
 
 
+def test_range_histogram_compares_exact_replicates_with_other_groups(
+    sieve_args: ReportConfig, sieve_results: SieveResults
+) -> None:
+    section = OneDifferencesPercentageHistogram(sieve_results, sieve_args)
+
+    figure = section._plot()
+
+    assert [trace.name for trace in figure.data] == [
+        "Exact replicates",
+        "Other design groups",
+    ]
+    assert all(trace.histnorm == "percent" for trace in figure.data)
+    assert figure.data[0].xbins == figure.data[1].xbins
+    assert figure.data[0].xbins.size == pytest.approx(0.003)
+    assert figure.layout.width == 700
+    assert figure.layout.yaxis.title.text == "Percentage of observations"
+
+
 def test_configure_matplotlib_applies_shared_defaults() -> None:
     configure_matplotlib()
 
@@ -136,7 +155,7 @@ def test_resources_dir_raises_for_missing_directory(
 
 
 def test_dynamic_sections_reflect_optional_results(
-    sieve_args: SieveArgs, sieve_results: SieveResults
+    sieve_args: ReportConfig, sieve_results: SieveResults
 ) -> None:
     fixed = ThresholdSweepSection(sieve_results, sieve_args)
     outputs = OutputDescriptionSection(sieve_results, sieve_args)
@@ -173,7 +192,7 @@ def test_dynamic_sections_reflect_optional_results(
 @pytest.mark.integration
 def test_build_report_writes_standalone_html(
     tmp_path: Path,
-    sieve_args: SieveArgs,
+    sieve_args: ReportConfig,
     sieve_results: SieveResults,
 ) -> None:
     output = tmp_path / "report" / "betasieve"

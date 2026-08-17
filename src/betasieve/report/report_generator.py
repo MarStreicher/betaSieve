@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING
 
 from betasieve.analysis import Col
-from betasieve.config import SieveArgs
+from betasieve.config import ReportConfig
 from betasieve.report.report_section import ReportMainSection
 from betasieve.report.sections.experiment_config import ConfigSection
 from betasieve.report.sections.differences import DifferencesSection
@@ -66,7 +66,7 @@ def _embed_logo() -> str:
 
 
 class SieveReportGenerator:
-    def __init__(self, results: "SieveResults", args: SieveArgs) -> None:
+    def __init__(self, results: "SieveResults", args: ReportConfig) -> None:
         self.results = results
         self.args = args
 
