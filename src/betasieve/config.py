@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Literal, Optional, get_args
 
+from .validation import raise_validation_errors
+
 FdrMethod = Literal[
     "bonferroni",
     "sidak",
@@ -112,8 +114,6 @@ def _sieve_config_errors(config: SieveConfig) -> List[str]:
     elif has_all_sweep:
         for name, value in sweep_fields:
             check_threshold_value(name, value)
-        if config.threshold_step is not None and config.threshold_step <= 0.0:
-            errors.append(f"threshold_step must be > 0, got {config.threshold_step}.")
         if (
             config.threshold_min is not None
             and config.threshold_max is not None
@@ -140,14 +140,8 @@ def _sieve_config_errors(config: SieveConfig) -> List[str]:
     return errors
 
 
-def _raise_validation_errors(title: str, errors: List[str]) -> None:
-    if errors:
-        message = f"{title}:\n" + "\n".join(f"  • {err}" for err in errors)
-        raise ValueError(message)
-
-
 def validate_sieve_config(config: SieveConfig) -> None:
-    _raise_validation_errors(
+    raise_validation_errors(
         "Invalid betaSieve analysis configuration",
         _sieve_config_errors(config),
     )
@@ -166,4 +160,4 @@ def validate_report_config(args: ReportConfig) -> None:
         errors.append(f"betas path is not a file: {betas_path}")
 
     errors.extend(_sieve_config_errors(args.analysis))
-    _raise_validation_errors("Invalid arguments for betaSieve", errors)
+    raise_validation_errors("Invalid arguments for betaSieve", errors)

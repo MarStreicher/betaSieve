@@ -11,6 +11,7 @@ from .config import SieveConfig, validate_sieve_config
 from .null_models import NullModels
 from .site_statistics import _add_flags, _add_statistics
 from .threshold import _find_threshold
+from .validation import raise_validation_errors
 
 
 @dataclass
@@ -78,11 +79,7 @@ def validate_betas_frame(cg_by_sample: pd.DataFrame) -> None:
                 "(for example, cg00000001_TC11)."
             )
 
-    if errors:
-        message = "Invalid beta-value DataFrame:\n" + "\n".join(
-            f"  • {error}" for error in errors
-        )
-        raise ValueError(message)
+    raise_validation_errors("Invalid beta-value DataFrame", errors)
 
 
 def _create_cpg_list(
