@@ -1,6 +1,5 @@
 ## Summary
 
-<!-- What does this PR change, and why? -->
 
 
 ## Type of change
@@ -21,11 +20,4 @@
 - [ ] Appended Changelog.md
 
 ## Release notes (for `develop` → `main` only)
-
-<!-- Short bullets for the GitHub release / changelog. Leave blank for non-release PRs. -->
-
-
-## Test plan
-
-<!-- How did you verify this? -->
 
