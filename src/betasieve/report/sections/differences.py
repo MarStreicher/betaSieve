@@ -4,10 +4,9 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.graph_objects import Figure
 
-from betasieve.analysis import Col
+from betasieve.columns import Col
 from betasieve.cg_probe_table import DesignGroup
 from betasieve.report.domain.mappings import (
-    BS_DARK,
     BS_GREEN,
     BS_HEATMAP_COLORSCALE,
     DESIGN_GROUP_COLORS,

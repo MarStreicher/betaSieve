@@ -22,7 +22,7 @@ __all__ = [
     "VALID_FDR_METHODS",
     "run_beta_sieve",
     "sieve_betas",
-    "validate_sieve_config",
     "validate_betas_frame",
+    "validate_sieve_config",
     "validate_report_config",
 ]

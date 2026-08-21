@@ -2,7 +2,7 @@ from typing import List
 
 from plotly.graph_objects import Figure
 
-from betasieve.analysis import Col
+from betasieve.columns import Col
 from betasieve.cg_probe_table import DesignGroup
 from betasieve.report.report_section import ReportMainSection, ReportSubSection
 from betasieve.report.tables import _summary_table_figure

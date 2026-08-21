@@ -5,7 +5,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import pytest
 
-from betasieve.analysis import Col, SieveResults
+from betasieve.analysis import SieveResults
+from betasieve.columns import Col
 from betasieve.config import ReportConfig
 from betasieve.report.figure_style import configure_matplotlib
 from betasieve.report.plots import _layout_figure

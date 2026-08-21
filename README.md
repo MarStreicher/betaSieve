@@ -170,11 +170,13 @@ results = run_beta_sieve(args)
 
 ```bash
 betasieve \
-  --betas betas.csv \
-  --threshold-min 0.03 \
-  --threshold-max 0.07 \
-  --threshold-step 0.01
+  --betas-path betas.csv \
+  --analysis.threshold-min 0.03 \
+  --analysis.threshold-max 0.07 \
+  --analysis.threshold-step 0.01
 ```
+
+Run `betasieve --help` for the full list of options.
 
 ---
 
@@ -200,8 +202,10 @@ BSD 3-Clause License (see [`LICENSE`](LICENSE)).
 
 Statistical settings belong to `SieveConfig`. The file-based pipeline wraps
 that configuration in `ReportConfig`, which additionally controls input and
-output paths. The command-line interface exposes the same settings as flat
-options such as `--threshold` and `--out-dir`.
+output paths. The command-line interface is generated from those dataclasses
+with [tyro](https://brentyi.github.io/tyro/), so every field is available as an
+option: `ReportConfig` fields are top level (`--betas-path`, `--out-dir`) and
+`SieveConfig` fields are prefixed (`--analysis.threshold`, `--analysis.fdr`).
 
 ### Required Parameters
 
@@ -339,7 +343,7 @@ Default:
 target_p0=0.05
 ```
 
-Set this parameter through the Python API or with the command-line option `--target-p0`.
+Set this parameter through the Python API or with the command-line option `--analysis.target-p0`.
 
 ---
 

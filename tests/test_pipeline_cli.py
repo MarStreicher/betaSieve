@@ -1,11 +1,13 @@
 import pickle
 from pathlib import Path
 
+import tyro
 import pandas as pd
 import pytest
 
 from betasieve import cli, pipeline
-from betasieve.analysis import Col, SieveResults
+from betasieve.analysis import SieveResults
+from betasieve.columns import Col
 from betasieve.config import ReportConfig
 
 
@@ -98,7 +100,7 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
 ) -> None:
     sieve_args.pkl = write_pickle
     sieve_args.report = write_report
-    calls = []
+    calls: list[str] = []
 
     monkeypatch.setattr(
         pipeline, "validate_report_config", lambda args: calls.append("validate")
@@ -112,12 +114,12 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
             calls.append("load")
             return "betas"
 
+    def fake_sieve_betas(betas: object, config: object) -> SieveResults:
+        calls.append("analyze")
+        return sieve_results
+
     monkeypatch.setattr(pipeline, "BetasLoader", FakeLoader)
-    monkeypatch.setattr(
-        pipeline,
-        "sieve_betas",
-        lambda betas, config: calls.append("analyze") or sieve_results,
-    )
+    monkeypatch.setattr(pipeline, "sieve_betas", fake_sieve_betas)
     monkeypatch.setattr(
         pipeline,
         "_pickle_intermediate_results",
@@ -146,61 +148,79 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
     assert result is sieve_results
 
 
-def test_parser_defaults_to_automatic_threshold_search(tmp_path: Path) -> None:
+def test_cli_defaults_to_automatic_threshold_search(tmp_path: Path) -> None:
     betas = tmp_path / "betas.tsv"
-    namespace = cli.build_parser().parse_args(["--betas", str(betas)])
+    config = tyro.cli(ReportConfig, args=["--betas-path", str(betas)])
 
-    assert namespace.betas == betas
-    assert namespace.threshold is None
-    assert namespace.threshold_min == 0.01
-    assert namespace.threshold_max == 0.1
-    assert namespace.threshold_step == 0.01
-    assert namespace.target_p0 == 0.05
-    assert namespace.report is True
-    assert namespace.pkl is False
+    assert config.betas_path == betas
+    assert config.analysis.threshold is None
+    assert config.analysis.threshold_min == 0.01
+    assert config.analysis.threshold_max == 0.1
+    assert config.analysis.threshold_step == 0.01
+    assert config.analysis.target_p0 == 0.05
+    assert config.out_dir == Path("results")
+    assert config.report is True
+    assert config.pkl is False
+    assert config.csv_files is True
 
 
-def test_parser_accepts_boolean_and_analysis_options(tmp_path: Path) -> None:
+def test_cli_accepts_boolean_and_analysis_options(tmp_path: Path) -> None:
     betas = tmp_path / "betas.tsv"
-    namespace = cli.build_parser().parse_args(
-        [
-            "--betas",
+    config = tyro.cli(
+        ReportConfig,
+        args=[
+            "--betas-path",
             str(betas),
-            "--threshold",
+            "--analysis.threshold",
             "0.2",
-            "--confidence",
+            "--analysis.confidence",
             "0.9",
-            "--fdr",
+            "--analysis.fdr",
             "holm",
-            "--target-p0",
+            "--analysis.target-p0",
             "0.03",
             "--no-report",
             "--pkl",
-        ]
+        ],
     )
 
-    assert namespace.threshold == 0.2
-    assert namespace.confidence == 0.9
-    assert namespace.fdr == "holm"
-    assert namespace.target_p0 == 0.03
-    assert namespace.report is False
-    assert namespace.pkl is True
+    assert config.analysis.threshold == 0.2
+    assert config.analysis.confidence == 0.9
+    assert config.analysis.fdr == "holm"
+    assert config.analysis.target_p0 == 0.03
+    assert config.report is False
+    assert config.pkl is True
 
 
-def test_main_converts_namespace_and_runs_pipeline(
+def test_cli_rejects_unknown_fdr_method(tmp_path: Path) -> None:
+    betas = tmp_path / "betas.tsv"
+
+    with pytest.raises(SystemExit):
+        tyro.cli(
+            ReportConfig,
+            args=["--betas-path", str(betas), "--analysis.fdr", "not-a-method"],
+        )
+
+
+def test_cli_requires_betas_path() -> None:
+    with pytest.raises(SystemExit):
+        tyro.cli(ReportConfig, args=[])
+
+
+def test_main_parses_arguments_and_runs_pipeline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     betas = tmp_path / "betas.tsv"
-    observed = []
+    observed: list[ReportConfig] = []
     monkeypatch.setattr(cli, "run_beta_sieve", observed.append)
 
     cli.main(
         [
-            "--betas",
+            "--betas-path",
             str(betas),
-            "--threshold",
+            "--analysis.threshold",
             "0.2",
-            "--target-p0",
+            "--analysis.target-p0",
             "0.03",
             "--no-report",
         ]

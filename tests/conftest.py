@@ -3,9 +3,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from betasieve.analysis import Col, SieveResults, _add_flags, _add_statistics
+from betasieve.analysis import SieveResults
 from betasieve.cg_probe_table import DesignGroup
+from betasieve.columns import Col
 from betasieve.config import SieveConfig, ReportConfig
+from betasieve.site_statistics import _add_flags, _add_statistics
 
 
 @pytest.fixture

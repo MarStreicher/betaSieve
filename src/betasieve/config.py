@@ -1,11 +1,8 @@
-from __future__ import annotations
-
-import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional, get_args
 
-VALID_FDR_METHODS = (
+FdrMethod = Literal[
     "bonferroni",
     "sidak",
     "holm-sidak",
@@ -16,27 +13,46 @@ VALID_FDR_METHODS = (
     "fdr_by",
     "fdr_tsbh",
     "fdr_tsbky",
-)
+]
+
+VALID_FDR_METHODS = get_args(FdrMethod)
 
 
-@dataclass
+@dataclass(frozen=True)
 class SieveConfig:
+    """Statistical settings for a betaSieve run."""
+
+    # Fixed max-min beta difference threshold. If None, sweep threshold_min...max.
     threshold: Optional[float] = None
-    fdr: str = "fdr_bh"
+    # Multiple-testing method (statsmodels multipletests).
+    fdr: FdrMethod = "fdr_bh"
+    # Confidence level for intervals and p-value flags.
     confidence: float = 0.95
-    threshold_min: Optional[float] = None
-    threshold_max: Optional[float] = None
-    threshold_step: Optional[float] = None
+    # Lower bound for automatic threshold search (inclusive).
+    threshold_min: Optional[float] = 0.01
+    # Upper bound for automatic threshold search (inclusive).
+    threshold_max: Optional[float] = 0.1
+    # Step size for automatic threshold search.
+    threshold_step: Optional[float] = 0.01
+    # Target exact-replicate background exceedance rate for a threshold sweep.
     target_p0: float = 0.05
 
 
 @dataclass
 class ReportConfig:
+    """Inputs, outputs, and analysis settings for a betaSieve run."""
+
+    # Path to the betas CSV (IlmnID x samples).
     betas_path: Path
+    # Statistical settings for the analysis.
     analysis: SieveConfig = field(default_factory=SieveConfig)
+    # Root output directory; csv/, figures/, report/, and pkl/ are created below it.
     out_dir: Path = Path("results")
+    # Generate the HTML analysis report.
     report: bool = True
+    # Write ReportConfig and SieveResults pickles to out-dir/pkl/.
     pkl: bool = False
+    # Write the CSV outputs to out-dir/csv/.
     csv_files: bool = True
 
     @property
@@ -54,24 +70,6 @@ class ReportConfig:
     @property
     def pkl_dir(self) -> Path:
         return self.out_dir / "pkl"
-
-    @classmethod
-    def from_namespace(cls, namespace: argparse.Namespace) -> ReportConfig:
-        return cls(
-            betas_path=namespace.betas,
-            analysis=SieveConfig(
-                threshold=namespace.threshold,
-                fdr=namespace.fdr,
-                confidence=namespace.confidence,
-                threshold_min=namespace.threshold_min,
-                threshold_max=namespace.threshold_max,
-                threshold_step=namespace.threshold_step,
-                target_p0=getattr(namespace, "target_p0", 0.05),
-            ),
-            out_dir=namespace.out_dir,
-            report=namespace.report,
-            pkl=getattr(namespace, "pkl", False),
-        )
 
 
 def _sieve_config_errors(config: SieveConfig) -> List[str]:

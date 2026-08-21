@@ -1,6 +1,6 @@
 from typing import List
 
-from betasieve.analysis import Col
+from betasieve.columns import Col
 from betasieve.cg_probe_table import DesignGroup
 from betasieve.report.report_section import ReportMainSection, ReportSubSection
 from betasieve.report.tables import _data_dict_figure
@@ -34,7 +34,7 @@ class OutputDescriptionSection(ReportMainSection):
 class MinMaxDiffCsvSubSection(ReportSubSection):
     @property
     def title(self) -> str:
-        return f"min_max_difference_{{threshold}}.csv"
+        return "min_max_difference_{threshold}.csv"
 
     @property
     def description(self) -> str:

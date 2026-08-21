@@ -2,18 +2,9 @@
 
 from __future__ import annotations
 
-import pandas as pd
-import plotly.graph_objects as go
 from plotly.graph_objects import Figure
 
-from betasieve.analysis import Col
-from betasieve.report.domain.mappings import (
-    BS_DARK,
-    BS_GREEN,
-    BS_MID,
-    DESIGN_GROUP_COLORS,
-    REPORT_FONT_FAMILY,
-)
+from betasieve.report.domain.mappings import REPORT_FONT_FAMILY
 
 
 def _layout_figure(

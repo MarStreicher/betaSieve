@@ -4,9 +4,9 @@ import base64
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional, TYPE_CHECKING
+from typing import Callable, List, Optional, TYPE_CHECKING
 
-from betasieve.analysis import Col
+from betasieve.columns import Col
 from betasieve.config import ReportConfig
 from betasieve.report.report_section import ReportMainSection
 from betasieve.report.sections.experiment_config import ConfigSection
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 _RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
 
-_SECTION_REGISTRY = [
+_SECTION_REGISTRY: List[Callable[["SieveResults", ReportConfig], ReportMainSection]] = [
     ConfigSection,
     DifferencesSection,
     ThresholdSweepSection,

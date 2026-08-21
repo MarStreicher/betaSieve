@@ -4,36 +4,14 @@ import pytest
 
 from betasieve import analysis
 from betasieve.analysis import (
-    Col,
-    _add_flags,
-    _add_statistics,
     _collect_max_min_differences,
     _create_cpg_list,
-    _diff_value_columns,
-    _find_threshold,
-    _flag_rates_by_group,
-    _select_threshold_for_replicates,
-    _sweep_thresholds,
     sieve_betas,
     validate_betas_frame,
 )
 from betasieve.cg_probe_table import CgProbeTable, DesignGroup
+from betasieve.columns import Col
 from betasieve.config import SieveConfig
-
-
-def test_diff_value_columns_returns_only_numeric_sample_columns(
-    diff_frame: pd.DataFrame,
-) -> None:
-    frame = diff_frame.copy()
-    frame[Col.N] = 4
-    frame["note"] = "text"
-
-    assert _diff_value_columns(frame) == [
-        "Sample_A",
-        "Sample_B",
-        "Sample_C",
-        "Sample_D",
-    ]
 
 
 def test_collect_max_min_differences_for_designs_and_replicates() -> None:
@@ -57,50 +35,6 @@ def test_collect_max_min_differences_for_designs_and_replicates() -> None:
         result[["A", "B"]].to_numpy(),
         [[0.3, 0.1], [0.3, 0.5]],
     )
-
-
-def test_add_statistics_uses_exact_replicates_as_empirical_null(
-    diff_frame: pd.DataFrame,
-) -> None:
-    result, _ = _add_statistics(diff_frame, 0.1, "fdr_bh", 0.95)
-
-    assert (result[Col.N] == 4).all()
-    assert (result[Col.THRESHOLD] == 0.1).all()
-    np.testing.assert_allclose(result[Col.P0], 3 / 8)
-    assert result.loc["cg_pair1", Col.ABOVE] == 4
-    assert result.loc["cg_pair1", Col.P_HAT] == pytest.approx(1.0)
-    assert result.loc["cg_pair1", Col.P_EMPIR] == pytest.approx(1 / 3)
-    assert result.loc["cg_pair2", Col.P_EMPIR] == pytest.approx(1.0)
-    assert result.loc["cg_er1", Col.P_ADJUSTED] == result.loc["cg_er1", Col.P_VALUE]
-    assert np.isfinite(result[Col.CI_LOWER]).all()
-    assert np.isfinite(result[Col.CI_UPPER]).all()
-
-
-def test_add_flags_uses_strict_alpha_and_ci_comparisons() -> None:
-    frame = pd.DataFrame(
-        {
-            Col.CONFIDENCE: [0.95, 0.95],
-            Col.GROUP: [DesignGroup.PAIR_TYPE.value] * 2,
-            Col.P_VALUE: [0.049, 0.051],
-            Col.P_ADJUSTED: [0.049, 0.051],
-            Col.P_EMPIR: [0.049, 0.051],
-            Col.P_EMPIR_ADJUSTED: [0.049, 0.051],
-            Col.P_BETA: [0.049, 0.051],
-            Col.P_BETA_ADJUSTED: [0.049, 0.051],
-            Col.CI_LOWER: [0.2, 0.1],
-            Col.P0: [0.1, 0.1],
-        }
-    )
-
-    result = _add_flags(frame)
-
-    assert result[Col.P_FLAG].tolist() == [True, False]
-    assert result[Col.P_ADJ_FLAG].tolist() == [True, False]
-    assert result[Col.P_EMPIR_FLAG].tolist() == [True, False]
-    assert result[Col.P_EMPIR_ADJ_FLAG].tolist() == [True, False]
-    assert result[Col.P_BETA_FLAG].tolist() == [True, False]
-    assert result[Col.P_BETA_ADJ_FLAG].tolist() == [True, False]
-    assert result[Col.CI_FLAG].tolist() == [True, False]
 
 
 def test_create_cpg_list_returns_all_probe_instances_at_flagged_sites() -> None:
@@ -131,91 +65,6 @@ def test_create_cpg_list_warns_when_no_candidates_match() -> None:
 
     assert result.empty
     assert result.name == "IlmnID"
-
-
-def test_flag_rates_by_group_calculates_counts_and_percentages() -> None:
-    frame = pd.DataFrame(
-        {
-            Col.GROUP: ["g1", "g1", "g2"],
-            Col.CI_FLAG: [True, False, True],
-            Col.P_ADJ_FLAG: [False, False, True],
-            Col.P_EMPIR_ADJ_FLAG: [True, True, False],
-        }
-    )
-
-    result = _flag_rates_by_group(frame).set_index(Col.GROUP)
-
-    assert result.loc["g1", "n_sites"] == 2
-    assert result.loc["g1", Col.PCT_CI_FLAGGED] == pytest.approx(50.0)
-    assert result.loc["g1", Col.PCT_P_ADJ_FLAGGED] == pytest.approx(0.0)
-    assert result.loc["g1", Col.PCT_EMPIR_ADJ_FLAGGED] == pytest.approx(100.0)
-
-
-def test_sweep_thresholds_includes_end_point(
-    diff_frame: pd.DataFrame,
-) -> None:
-    result = _sweep_thresholds(
-        diff_frame,
-        threshold_min=0.05,
-        threshold_max=0.15,
-        threshold_step=0.05,
-        fdr="fdr_bh",
-        confidence=0.95,
-    )
-
-    assert result[Col.THRESHOLD].unique().tolist() == pytest.approx([0.05, 0.1, 0.15])
-    assert DesignGroup.EXACT_REPLICATES.value in result[Col.GROUP].values
-
-
-def test_select_threshold_returns_first_qualifying_replicate_threshold() -> None:
-    sweep = pd.DataFrame(
-        {
-            Col.GROUP: [DesignGroup.EXACT_REPLICATES.value] * 3,
-            Col.THRESHOLD: [0.2, 0.1, 0.3],
-            Col.P0: [0.04, 0.08, 0.01],
-        }
-    )
-
-    assert _select_threshold_for_replicates(sweep, target_p0=0.05) == 0.2
-
-
-def test_select_threshold_falls_back_to_lowest_p0(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    sweep = pd.DataFrame(
-        {
-            Col.GROUP: [DesignGroup.EXACT_REPLICATES.value] * 2,
-            Col.THRESHOLD: [0.1, 0.2],
-            Col.P0: [0.2, 0.1],
-        }
-    )
-
-    chosen = _select_threshold_for_replicates(sweep, target_p0=0.05)
-
-    assert chosen == 0.2
-    assert "target_p0=0.05 was not reached" in capsys.readouterr().out
-
-
-def test_select_threshold_requires_exact_replicate_results() -> None:
-    sweep = pd.DataFrame({Col.GROUP: ["other"], Col.THRESHOLD: [0.1], Col.P0: [0.1]})
-
-    with pytest.raises(ValueError, match="No sweep results"):
-        _select_threshold_for_replicates(sweep, target_p0=0.05)
-
-
-def test_find_threshold_returns_sweep_results(diff_frame: pd.DataFrame) -> None:
-    chosen, sweep = _find_threshold(
-        diff_frame,
-        threshold_min=0.05,
-        threshold_max=0.15,
-        threshold_step=0.05,
-        fdr="fdr_bh",
-        confidence=0.95,
-        target_p0=0.4,
-    )
-
-    assert chosen == pytest.approx(0.05)
-    assert not sweep.empty
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,5 @@
-import argparse
 from pathlib import Path
+from dataclasses import replace
 
 import pytest
 
@@ -18,37 +18,6 @@ def test_output_directory_properties_are_derived_from_root(
     assert sieve_args.figures_dir == sieve_args.out_dir / "figures"
     assert sieve_args.report_dir == sieve_args.out_dir / "report"
     assert sieve_args.pkl_dir == sieve_args.out_dir / "pkl"
-
-
-def test_from_namespace_maps_cli_values_and_defaults_pkl() -> None:
-    namespace = argparse.Namespace(
-        betas=Path("betas.tsv"),
-        threshold=0.2,
-        fdr="holm",
-        confidence=0.9,
-        threshold_min=0.01,
-        threshold_max=0.1,
-        threshold_step=0.01,
-        out_dir=Path("output"),
-        report=False,
-    )
-
-    args = ReportConfig.from_namespace(namespace)
-
-    assert args == ReportConfig(
-        betas_path=Path("betas.tsv"),
-        analysis=SieveConfig(
-            threshold=0.2,
-            fdr="holm",
-            confidence=0.9,
-            threshold_min=0.01,
-            threshold_max=0.1,
-            threshold_step=0.01,
-        ),
-        out_dir=Path("output"),
-        report=False,
-        pkl=False,
-    )
 
 
 def test_validate_accepts_fixed_threshold(sieve_args: ReportConfig) -> None:
@@ -81,11 +50,10 @@ def test_validate_accepts_complete_threshold_sweep(
 def test_validate_rejects_invalid_individual_values(
     sieve_args: ReportConfig, updates: dict, message: str
 ) -> None:
-    for name, value in updates.items():
-        setattr(sieve_args.analysis, name, value)
+    analysis = replace(sieve_args.analysis, **updates)
 
     with pytest.raises(ValueError, match=message):
-        validate_sieve_config(sieve_args.analysis)
+        validate_sieve_config(analysis)
 
 
 @pytest.mark.parametrize(
@@ -113,8 +81,16 @@ def test_validate_rejects_directory_as_betas_path(
         validate_report_config(sieve_args)
 
 
+def test_default_config_is_a_valid_threshold_sweep() -> None:
+    validate_sieve_config(SieveConfig())
+
+
 def test_validate_reports_missing_sweep_fields(sieve_args: ReportConfig) -> None:
-    sieve_args.analysis = SieveConfig(threshold_min=0.01)
+    sieve_args.analysis = SieveConfig(
+        threshold_min=0.01,
+        threshold_max=None,
+        threshold_step=None,
+    )
 
     with pytest.raises(ValueError) as exc_info:
         validate_sieve_config(sieve_args.analysis)
@@ -125,7 +101,11 @@ def test_validate_reports_missing_sweep_fields(sieve_args: ReportConfig) -> None
 
 
 def test_validate_requires_fixed_threshold_or_sweep(sieve_args: ReportConfig) -> None:
-    sieve_args.analysis = SieveConfig()
+    sieve_args.analysis = SieveConfig(
+        threshold_min=None,
+        threshold_max=None,
+        threshold_step=None,
+    )
 
     with pytest.raises(ValueError, match="Either set threshold"):
         validate_sieve_config(sieve_args.analysis)
@@ -158,9 +138,15 @@ def test_validate_rejects_invalid_sweep_ranges(
 
 
 def test_validation_collects_multiple_errors(sieve_args: ReportConfig) -> None:
-    sieve_args.analysis.fdr = "bad"
-    sieve_args.analysis.confidence = 2.0
-    sieve_args.analysis.threshold = -1.0
+    sieve_args = replace(
+        sieve_args,
+        analysis=replace(
+            sieve_args.analysis,
+            fdr="bad",  # type: ignore[arg-type]
+            confidence=2.0,
+            threshold=-1.0,
+        ),
+    )
 
     with pytest.raises(ValueError) as exc_info:
         validate_report_config(sieve_args)

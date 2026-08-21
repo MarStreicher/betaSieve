@@ -38,10 +38,11 @@ dependencies = [
   "statsmodels",
   "matplotlib",
   "plotly",
+  "tyro>=0.9",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-cov>=4", "black", "ruff"]
+dev = ["pytest>=7", "pytest-cov>=4", "black", "ruff", "mypy", "pre-commit"]
 
 [project.urls]
 Homepage = "https://github.com/MarStreicher/betaSieve"
@@ -84,6 +85,23 @@ source = ["betasieve"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.black]
+target-version = ["py39"]
+
+[tool.ruff]
+target-version = "py39"
+
+[tool.mypy]
+files = ["src", "tests"]
+mypy_path = "src"
+# python_version is left unset: numpy's bundled stubs require 3.12+ to parse,
+# so mypy has to analyse against the interpreter it runs on.
+# Third-party scientific packages ship incomplete or absent type stubs.
+ignore_missing_imports = true
+exclude = [
+    "^build/",
+]
 
 [tool.pyright]
 extraPaths = ["src"]
