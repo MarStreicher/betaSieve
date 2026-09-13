@@ -15,6 +15,10 @@ All notable changes to this project will be documented in this file.
   [tyro](https://brentyi.github.io/tyro/). Option names changed
   (`--betas` → `--betas-path`, `--threshold` → `--analysis.threshold`).
 - `SieveConfig` now defaults to an automatic threshold search.
+- Report design.
+- Report wording uses design replicates vs exact replicates.
+- Difference and p̂ histograms support Absolute / Percentage toggles.
+- Report subsections implement `_figures()` and `generate()` is shared in the base class.
 
 ### Removed
 
