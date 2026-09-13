@@ -3,10 +3,10 @@ from __future__ import annotations
 from betasieve.cg_probe_table import DesignGroup
 
 # Neutral base with logo-green report accents
-BS_DARK = "#2F3437"      # charcoal — headings, primary text
-BS_MID = "#6B7280"       # slate gray — secondary text, muted UI
-BS_GREEN = "#4A934A"     # brand green — links, borders, key highlights
-BS_LIGHT = "#9CA3AF"     # cool gray — tertiary series / subtle accents
+BS_DARK = "#2F3437"  # charcoal — headings, primary text
+BS_MID = "#6B7280"  # slate gray — secondary text, muted UI
+BS_GREEN = "#4A934A"  # brand green — links, borders, key highlights
+BS_LIGHT = "#9CA3AF"  # cool gray — tertiary series / subtle accents
 BS_LIGHTEST = "#F4F5F6"  # off-white gray — panel / TOC background
 
 # Sequential heatmap: panel background → soft green → brand green → report blue

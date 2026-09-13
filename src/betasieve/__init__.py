@@ -1,15 +1,28 @@
-from .analysis import SieveResults, run_duplicate_analysis
-from .config import SieveArgs, VALID_FDR_METHODS, validate_sieve_args
+from .analysis import (
+    SieveResults,
+    sieve_betas,
+    validate_betas_frame,
+)
+from .config import (
+    SieveConfig,
+    PipelineConfig,
+    VALID_FDR_METHODS,
+    validate_sieve_config,
+    validate_pipeline_config,
+)
 from .cg_probe_table import ProbeTableCol, DesignGroup
-from .pipeline import run_beta_sieve
+from .pipeline import run_sieve_pipeline
 
 __all__ = [
     "ProbeTableCol",
     "DesignGroup",
-    "SieveArgs",
+    "SieveConfig",
+    "PipelineConfig",
     "SieveResults",
     "VALID_FDR_METHODS",
-    "run_beta_sieve",
-    "run_duplicate_analysis",
-    "validate_sieve_args",
+    "run_sieve_pipeline",
+    "sieve_betas",
+    "validate_betas_frame",
+    "validate_sieve_config",
+    "validate_pipeline_config",
 ]

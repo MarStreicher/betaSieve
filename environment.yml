@@ -11,11 +11,14 @@ dependencies:
   - statsmodels
   - matplotlib
   - plotly
+  - tyro>=0.9
   - pip
   # Dev / test tools
   - pytest>=7
   - pytest-cov>=4
   - black
   - ruff
+  - mypy
+  - pre-commit
   - pip:
-      - epicv2-io>=0.1.0
+      - epicv2-io>=1.0.1

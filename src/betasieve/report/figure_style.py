@@ -28,4 +28,5 @@ _LATEX_LIKE_RCPARAMS: dict[str, Any] = {
 
 def configure_matplotlib() -> None:
     """Apply shared typography and sizes; call before creating figures."""
-    plt.rcParams.update(_LATEX_LIKE_RCPARAMS)
+    # rcParams keys are typed as a closed Literal set, which a plain dict cannot satisfy.
+    plt.rcParams.update(_LATEX_LIKE_RCPARAMS)  # type: ignore[arg-type]

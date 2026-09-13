@@ -6,7 +6,8 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.graph_objects import Figure
 
-from betasieve.analysis import Col, SieveResults
+from betasieve.analysis import SieveResults
+from betasieve.columns import Col
 from betasieve.cg_probe_table import DesignGroup
 from betasieve.null_models import NullModels
 from betasieve.report.domain.mappings import (

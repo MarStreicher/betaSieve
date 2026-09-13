@@ -3,8 +3,9 @@ import pandas as pd
 import pytest
 from scipy import stats
 
-from betasieve.analysis import Col, _add_statistics
 from betasieve.cg_probe_table import DesignGroup
+from betasieve.columns import Col
+from betasieve.site_statistics import _add_statistics
 from betasieve.null_models import (
     BetaBinomialNull,
     BinomialNull,
@@ -25,6 +26,7 @@ def test_binomial_critical_p_hat_is_first_attainable_value_beyond_alpha() -> Non
 
     critical = model.critical_p_hat(0.05)
 
+    assert critical is not None
     assert critical == pytest.approx(0.5)
     assert model.sf(critical * model.n) < 0.05
     assert model.sf(critical * model.n - 1) >= 0.05
