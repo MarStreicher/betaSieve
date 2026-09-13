@@ -8,7 +8,7 @@
   EPICv2 probe designs analysis
 </p>
 
-betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing beta-value differences for each (CpG site, sample) pair.
+betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing β-value differences for each (CpG site, sample) pair.
 
 ## Why should I care?
 
@@ -33,10 +33,10 @@ Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki)
 ## Features
 
 1. Analysis of EPICv2 IlmnIDs with different probe designs.
-2. Optional threshold sweep across user-defined beta-value differences.
+2. Optional threshold sweep across user-defined β-value differences.
 3. Cohort-specific calibration against exact technical replicates.
 4. Empirical upper-tail testing with multiple-testing correction.
-5. An HTML report comparing empirical, binomial, and beta-binomial null distributions.
+5. An HTML report comparing empirical, binomial, and β-binomial null distributions.
 6. Identification of highly variable candidate IlmnIDs that can be reviewed for masking.
 
 ---
@@ -55,41 +55,41 @@ betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
 
 These categories are not mutually exclusive. A site can contribute both a design-comparison row and an exact-replicate row.
 
-### Max–min ranges and threshold calibration
+### Max-min ranges and threshold calibration
 
-For every CpG-site–sample pair, betaSieve calculates the max–min β-value range across the probes in the relevant group. Given a threshold \(t\), an exceedance is recorded when this range is strictly greater than \(t\).
+For every CpG-site-sample pair, betaSieve calculates the max-min β-value range across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this range is strictly greater than $t$.
 
 The empirical background exceedance rate is
 
-\[
+$$
 p_0 =
-\frac{\text{exact-replicate site–sample pairs with range}>t}
-{\text{all exact-replicate site–sample pairs}}.
-\]
+\frac{\text{exact-replicate site-sample pairs with range}>t}
+{\text{all exact-replicate site-sample pairs}}.
+$$
 
-When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which \(p_0\) is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed \(p_0\).
+When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
 
 ### Site-level exceedance rate
 
-For site \(i\), betaSieve calculates
+For site $i$, betaSieve calculates
 
-\[
+$$
 \hat p_i =
 \frac{\text{number of samples with range}>t}
 {\text{number of samples}}.
-\]
+$$
 
-The primary empirical upper-tail p-value compares \(\hat p_i\) with the observed exact-replicate reference distribution:
+The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution:
 
-\[
+$$
 p_i^{\mathrm{emp}} =
 \frac{1 + \#\{j:\hat p_j^{ER}\geq\hat p_i\}}
 {m+1},
-\]
+$$
 
-where \(m\) is the number of exact-replicate reference sites. The plus-one correction prevents zero p-values. Multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
+where $m$ is the number of exact-replicate reference sites. The plus-one correction prevents zero p-values. Multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
 
-The output also contains a one-sided normal-approximation z-test and a Wilson lower-bound criterion for reference. The HTML report overlays the observed exact-replicate distribution with binomial and method-of-moments beta-binomial models. These modelled distributions are diagnostic and do not currently determine the candidate list.
+The output also contains a one-sided normal-approximation z-test and a Wilson lower-bound criterion for reference. The HTML report overlays the observed exact-replicate distribution with binomial and method-of-moments β-binomial models. These modelled distributions are diagnostic and do not currently determine the candidate list.
 
 ---
 
@@ -130,6 +130,25 @@ print(f"Threshold: {results.threshold}")
 print(f"Candidates: {len(results.candidate_cpgs)}")
 ```
 
+Or load the same matrix with [epicv2-io](https://pypi.org/project/epicv2-io/), which keeps cg rows only and directly assigns the index column:
+
+```python
+from epicv2io import BetasLoader
+from betasieve import SieveConfig, sieve_betas
+
+betas = BetasLoader("betas.csv").load_data()
+config = SieveConfig(
+    threshold_min=0.03,
+    threshold_max=0.07,
+    threshold_step=0.01,
+)
+
+results = sieve_betas(betas, config)
+```
+
+`load_data()` also accepts optional manifest filters such as
+`exclude_sex_chromosomes=True` or `exclude_mismatch_pos=True`.
+
 `sieve_betas` validates that the DataFrame has unique EPICv2 IlmnIDs in its
 index, unique sample columns, numeric finite beta values in `[0, 1]`, and the
 probe groups required by the statistical model. It performs no file or report
@@ -142,28 +161,28 @@ pipeline:
 
 ```python
 from pathlib import Path
-from betasieve import SieveConfig, ReportConfig, run_beta_sieve
+from betasieve import SieveConfig, PipelineConfig, run_sieve_pipeline
 
-args = ReportConfig(
+config = PipelineConfig(
     betas_path=Path("betas.csv"),
     analysis=SieveConfig(threshold=0.05),
 )
-results = run_beta_sieve(args)
+results = run_sieve_pipeline(config)
 ```
 
-`run_beta_sieve` loads `betas_path`, calls `sieve_betas`, and optionally writes
+`run_sieve_pipeline` loads `betas_path`, calls `sieve_betas`, and optionally writes
 CSV files, a pickle, and an HTML report. Disable all output while retaining
 file loading with:
 
 ```python
-args = ReportConfig(
+config = PipelineConfig(
     betas_path=Path("betas.csv"),
     analysis=SieveConfig(threshold=0.05),
     csv_files=False,
     report=False,
     pkl=False,
 )
-results = run_beta_sieve(args)
+results = run_sieve_pipeline(config)
 ```
 
 ### Command Line
@@ -184,7 +203,7 @@ Run `betasieve --help` for the full list of options.
 
 If you use betaSieve in published work, please cite:
 
-> Streicher M. betaSieve: Filter-first analysis of EPICv2 duplicate CpG probes. GitHub repository. 2026.
+> Streicher M. betaSieve. GitHub repository. 2026.
 
 For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also cite:
 
@@ -194,24 +213,24 @@ For EPICv2 probe naming and replicate definitions (as used in the overview figur
 
 ## License
 
-BSD 3-Clause License (see [`LICENSE`](LICENSE)).
+BSD 3-Clause License (see `[LICENSE](LICENSE)`).
 
 ---
 
 ## Parameters
 
 Statistical settings belong to `SieveConfig`. The file-based pipeline wraps
-that configuration in `ReportConfig`, which additionally controls input and
+that configuration in `PipelineConfig`, which additionally controls input and
 output paths. The command-line interface is generated from those dataclasses
 with [tyro](https://brentyi.github.io/tyro/), so every field is available as an
-option: `ReportConfig` fields are top level (`--betas-path`, `--out-dir`) and
+option: `PipelineConfig` fields are top level (`--betas-path`, `--out-dir`) and
 `SieveConfig` fields are prefixed (`--analysis.threshold`, `--analysis.fdr`).
 
 ### Required Parameters
 
 #### `betas_path`
 
-Path to the input beta-value matrix.
+Path to the input β-value matrix.
 
 Expected format:
 
@@ -236,7 +255,7 @@ betaSieve requires either:
 
 #### `threshold`
 
-Fixed β-value max–min threshold. A site–sample observation is an exceedance when its range is strictly greater than this value.
+Fixed β-value max-min threshold. A site-sample observation is an exceedance when its range is strictly greater than this value.
 
 Range:
 
@@ -298,7 +317,7 @@ The above configuration evaluates:
 
 #### `fdr`
 
-Method used for multiple-testing correction. Despite the parameter name, the supported choices include both false-discovery-rate and family-wise-error-rate procedures. betaSieve passes the selected method to [`statsmodels.stats.multitest.multipletests`](https://www.statsmodels.org/stable/generated/statsmodels.stats.multitest.multipletests.html).
+Method used for multiple-testing correction. Despite the parameter name, the supported choices include both false-discovery-rate and family-wise-error-rate procedures. betaSieve passes the selected method to `[statsmodels.stats.multitest.multipletests](https://www.statsmodels.org/stable/generated/statsmodels.stats.multitest.multipletests.html)`.
 
 Default:
 
@@ -426,7 +445,7 @@ pkl=False
 ### Fixed Threshold
 
 ```python
-args = ReportConfig(
+config = PipelineConfig(
     betas_path=Path("betas.csv"),
     analysis=SieveConfig(threshold=0.05),
 )
@@ -435,7 +454,7 @@ args = ReportConfig(
 ### Automatic Threshold Search
 
 ```python
-args = ReportConfig(
+config = PipelineConfig(
     betas_path=Path("betas.csv"),
     analysis=SieveConfig(
         threshold_min=0.03,
@@ -459,7 +478,7 @@ By default, betaSieve writes:
 
 The principal statistical columns are:
 
-- `above_threshold`: number of samples whose max–min range exceeds \(t\);
+- `above_threshold`: number of samples whose max-min range exceeds $t$;
 - `p_hat`: site-level sample exceedance rate;
 - `p0`: pooled exact-replicate background exceedance rate;
 - `p_empir`: empirical upper-tail p-value;
@@ -470,7 +489,7 @@ The principal statistical columns are:
 
 ## Statistical considerations
 
-- Empirical p-values are discrete, with minimum possible value \(1/(m+1)\).
+- Empirical p-values are discrete, with minimum possible value $1/(m+1)$.
 - The empirical test assumes that exact-replicate sites provide an appropriate reference distribution for non-replicate design comparisons.
-- Max–min ranges can increase with the number of probes in a group, so comparisons involving pairs, triplets, and quadruplets should be interpreted with that difference in mind.
+- Max-min ranges can increase with the number of probes in a group, so comparisons involving pairs, triplets, and quadruplets should be interpreted with that difference in mind.
 - The current implementation assumes a complete sample matrix; missing β-values require careful preprocessing.

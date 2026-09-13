@@ -220,8 +220,8 @@ __marimo__/
 # Custom
 results
 jobs
+slurm*
 example
 coverage*
 TODO
-betasieve_tool_overview_wiki.svg
 .vscode
