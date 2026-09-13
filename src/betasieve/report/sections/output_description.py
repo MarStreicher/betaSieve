@@ -109,7 +109,10 @@ class SweepSummaryCsvSubSection(ReportSubSection):
 
     def _figures(self):
         rows = [
-            (Col.GROUP.value, "Replicate group (design replicate or exact-replicate category)."),
+            (
+                Col.GROUP.value,
+                "Replicate group (design replicate or exact-replicate category).",
+            ),
             ("n_sites", "Number of CpG-sites in this replicate group."),
             (Col.THRESHOLD.value, "Candidate threshold 𝑡."),
             (Col.P0.value, "Background exceedance rate at this threshold."),
