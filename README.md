@@ -140,9 +140,9 @@ results = sieve_betas(betas, config)
 `exclude_sex_chromosomes=True` or `exclude_mismatch_pos=True`.
 
 `sieve_betas` validates that the DataFrame has unique EPICv2 IlmnIDs in its
-index, unique sample columns, numeric finite beta values in `[0, 1]`, and the
-probe groups required by the statistical model. It performs no file or report
-output.
+index, unique sample columns, numeric beta values in `[0, 1]`, and the
+probe groups required by the statistical model. Missing or infinite beta values
+produce a warning. It performs no file or report output.
 
 #### File-based pipeline
 

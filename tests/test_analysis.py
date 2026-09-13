@@ -80,13 +80,6 @@ def test_create_cpg_list_warns_when_no_candidates_match() -> None:
             "between 0 and 1",
         ),
         (
-            pd.DataFrame(
-                {"A": pd.Series([pd.NA], dtype="Float64").array},
-                index=["cg00000001_TC11"],
-            ),
-            "must not contain missing",
-        ),
-        (
             pd.DataFrame({"A": [0.1]}, index=["invalid"]),
             "valid EPICv2 IlmnID",
         ),
@@ -97,6 +90,31 @@ def test_validate_betas_frame_rejects_invalid_frames(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         validate_betas_frame(frame)
+
+
+@pytest.mark.parametrize(
+    "frame",
+    [
+        pd.DataFrame(
+            {"A": pd.Series([pd.NA], dtype="Float64").array},
+            index=["cg00000001_TC11"],
+        ),
+        pd.DataFrame({"A": [np.inf]}, index=["cg00000001_TC11"]),
+    ],
+)
+def test_validate_betas_frame_warns_on_missing_or_infinite_values(
+    frame: pd.DataFrame,
+) -> None:
+    with pytest.warns(UserWarning, match="missing or infinite"):
+        validate_betas_frame(frame)
+
+
+def test_validate_betas_frame_allows_non_numeric_sample_names() -> None:
+    frame = pd.DataFrame(
+        {"D24247": [0.1], "12660": [0.2], "D14833*": [0.3]},
+        index=["cg00000001_TC11"],
+    )
+    validate_betas_frame(frame)
 
 
 def test_sieve_betas_does_not_load_from_disk(

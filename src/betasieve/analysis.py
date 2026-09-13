@@ -56,16 +56,18 @@ def validate_betas_frame(cg_by_sample: pd.DataFrame) -> None:
             + "."
         )
     elif not cg_by_sample.empty:
-        if cg_by_sample.isna().to_numpy().any():
-            errors.append("beta values must not contain missing or infinite values.")
-        else:
-            values = cg_by_sample.to_numpy(dtype=float)
-            if not np.isfinite(values).all():
-                errors.append(
-                    "beta values must not contain missing or infinite values."
-                )
-            elif ((values < 0.0) | (values > 1.0)).any():
-                errors.append("beta values must be between 0 and 1 (inclusive).")
+        values = cg_by_sample.to_numpy(dtype=float)
+        finite_mask = np.isfinite(values)
+        if not finite_mask.all():
+            n_invalid = int((~finite_mask).sum())
+            warnings.warn(
+                f"beta values contain {n_invalid} missing or infinite value(s).",
+                UserWarning,
+            )
+        if finite_mask.any() and (
+            (values[finite_mask] < 0.0) | (values[finite_mask] > 1.0)
+        ).any():
+            errors.append("beta values must be between 0 and 1 (inclusive).")
 
     if len(cg_by_sample.index) > 0 and not cg_by_sample.index.hasnans:
         probe_ids = pd.Series(cg_by_sample.index.astype(str))

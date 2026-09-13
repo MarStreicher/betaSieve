@@ -41,7 +41,6 @@ def _write_report(config: PipelineConfig, results: SieveResults) -> None:
 
 def run_sieve_pipeline(config: PipelineConfig) -> SieveResults:
     """Load betas from disk, run sieve_betas, and write any requested outputs."""
-    validate_pipeline_config(config)
 
     cg_by_sample = BetasLoader(config.betas_path).load_data()
     results = sieve_betas(cg_by_sample, config.analysis)
