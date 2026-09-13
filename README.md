@@ -8,14 +8,14 @@
   EPICv2 probe designs analysis
 </p>
 
-betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing β-value differences for each (CpG site, sample) pair.
+betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing β-value differences for each (CpG-site, sample) pair.
 
 ## Why should I care?
 
-EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample.
+EPICv2 can measure the **same CpG-site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
+  <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG-site, multiple probe designs, and suffix encoding" width="780">
 </p>
 
 <p align="center"><em>
@@ -48,48 +48,38 @@ Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki)
 betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
 
 - **Pair type:** two designs from the same chemistry family (`TC1`/`TC2` or `BC1`/`BC2`);
-- **Pair design:** any other site with exactly two design types;
+- **Pair design:** any other CpG-site with exactly two design types;
 - **Triplet:** three design types;
 - **Quadruplet:** four design types;
 - **Exact replicates:** repeated measurements using the same design.
 
-These categories are not mutually exclusive. A site can contribute both a design-comparison row and an exact-replicate row.
+These categories are not mutually exclusive. A CpG-site can contribute both a design-comparison row and an exact-replicate row.
 
-### Max-min ranges and threshold calibration
+### Max-min differences and threshold calibration
 
-For every CpG-site-sample pair, betaSieve calculates the max-min β-value range across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this range is strictly greater than $t$.
+For every CpG-site-sample pair, betaSieve calculates the max-min β-value difference across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this difference is strictly greater than $t$.
 
 The empirical background exceedance rate is
 
 $$
 p_0 =
-\frac{\text{exact-replicate site-sample pairs with range}>t}
-{\text{all exact-replicate site-sample pairs}}.
+\frac{\text{exact-replicate CpG-site-sample pairs with difference}>t}
+{\text{all exact-replicate CpG-site-sample pairs}}.
 $$
 
 When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
 
-### Site-level exceedance rate
+### CpG-site level exceedance rate
 
-For site $i$, betaSieve calculates
+For CpG-site $i$, betaSieve calculates
 
 $$
 \hat p_i =
-\frac{\text{number of samples with range}>t}
+\frac{\text{number of samples with difference}>t}
 {\text{number of samples}}.
 $$
 
-The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution:
-
-$$
-p_i^{\mathrm{emp}} =
-\frac{1 + \#\{j:\hat p_j^{ER}\geq\hat p_i\}}
-{m+1},
-$$
-
-where $m$ is the number of exact-replicate reference sites. The plus-one correction prevents zero p-values. Multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
-
-The output also contains a one-sided normal-approximation z-test and a Wilson lower-bound criterion for reference. The HTML report overlays the observed exact-replicate distribution with binomial and method-of-moments β-binomial models. These modelled distributions are diagnostic and do not currently determine the candidate list.
+The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
 
 ---
 
@@ -255,9 +245,9 @@ betaSieve requires either:
 
 #### `threshold`
 
-Fixed β-value max-min threshold. A site-sample observation is an exceedance when its range is strictly greater than this value.
+Fixed β-value max-min threshold. A CpG-site-sample observation is an exceedance when its difference is strictly greater than this value.
 
-Range:
+difference:
 
 ```text
 (0, 1]
@@ -354,7 +344,7 @@ confidence=0.95
 
 #### `target_p0`
 
-Target empirical background exceedance rate used during automatic threshold selection. It is not itself a site-level false-positive rate.
+Target empirical background exceedance rate used during automatic threshold selection. It is not itself a CpG-site-level false-positive rate.
 
 Default:
 
@@ -393,7 +383,7 @@ results/
 
 #### `csv_files`
 
-Write site-level statistics, candidate CpGs, and—when applicable—the threshold
+Write CpG-site-level statistics, candidate CpGs, and—when applicable—the threshold
 sweep summary as CSV files.
 
 Default:
@@ -469,27 +459,46 @@ config = PipelineConfig(
 
 ## Outputs
 
-By default, betaSieve writes:
+Both `sieve_betas` and `run_sieve_pipeline` return a `SieveResults` object.
+The file-based pipeline additionally writes selected fields to disk.
 
-- `results/csv/min_max_difference_{threshold}.csv`: site-level statistics, per-sample ranges, raw and adjusted p-values, and flag columns;
-- `results/csv/candidate_cpgs.csv`: all IlmnIDs belonging to sites with `p_empir_adj_flagged=True`;
-- `results/csv/threshold_sweep_summary.csv`: threshold-specific background and flagging rates when a sweep was performed;
-- `results/report.html`: interactive analysis and null-model diagnostics.
+### `SieveResults`
 
-The principal statistical columns are:
+| Field | Content |
+| --- | --- |
+| `threshold` | Applied max–min β-value threshold $t$. |
+| `diff_frame` | Per CpG-site, per-sample max–min ranges, plus the design `group`. |
+| `statistics_frame` | Site-level exceedance rates, p-values, and confidence intervals at $t$. |
+| `flagged_frame` | `statistics_frame` plus boolean flag columns. The primary flag is `p_empir_adj_flagged`. |
+| `candidate_cpgs` | IlmnIDs of all probes at sites with `p_empir_adj_flagged=True`. |
+| `sieved_betas` | Copy of the input β-value matrix with `candidate_cpgs` removed. The original file is not modified. |
+| `null_models` | Empirical, binomial, and beta-binomial null models fitted from exact replicates. Used in the HTML report; they do not determine the candidate list. |
+| `sweep_df` | Per-group flagging rates at each candidate threshold. `None` when $t$ was set directly. |
 
-- `above_threshold`: number of samples whose max-min range exceeds $t$;
-- `p_hat`: site-level sample exceedance rate;
+### Principal statistical columns
+
+These columns live on `flagged_frame` (and therefore in `min_max_difference_{threshold}.csv`):
+
+- `above_threshold`: number of samples whose max–min difference exceeds $t$;
+- `p_hat`: CpG-site-level sample exceedance rate;
 - `p0`: pooled exact-replicate background exceedance rate;
 - `p_empir`: empirical upper-tail p-value;
 - `p_empir_adj`: multiple-testing-adjusted empirical p-value;
 - `p_empir_adj_flagged`: primary discordance flag.
 
-`candidate_cpgs.csv` is a recommendation list; betaSieve does not modify the input β-value matrix automatically.
+### Files
+
+By default, `run_sieve_pipeline` writes:
+
+- `results/csv/min_max_difference_{threshold}.csv`: `flagged_frame`;
+- `results/csv/candidate_cpgs.csv`: `candidate_cpgs`;
+- `results/csv/threshold_sweep_summary.csv`: `sweep_df`, when a sweep was performed;
+- `results/report.html`: interactive analysis and null-model diagnostics.
+
+Set `pkl=True` to also pickle `PipelineConfig` and `SieveResults` under `results/pkl/`.
+`sieved_betas` is returned in memory only; it is not written as a CSV.
 
 ## Statistical considerations
 
-- Empirical p-values are discrete, with minimum possible value $1/(m+1)$.
 - The empirical test assumes that exact-replicate sites provide an appropriate reference distribution for non-replicate design comparisons.
-- Max-min ranges can increase with the number of probes in a group, so comparisons involving pairs, triplets, and quadruplets should be interpreted with that difference in mind.
 - The current implementation assumes a complete sample matrix; missing β-values require careful preprocessing.
