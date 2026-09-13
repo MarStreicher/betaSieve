@@ -4,22 +4,22 @@ import plotly.graph_objects as go
 from plotly.graph_objects import Figure
 
 from betasieve.report.domain.mappings import (
-    BS_DARK,
-    BS_LIGHTEST,
-    REPORT_FONT_FAMILY,
+    TABLE_CELL_TEXT,
+    TABLE_FONT_FAMILY,
     TABLE_HEADER_BG,
+    TABLE_HEADER_TEXT,
+    TABLE_ROW_ALT,
+    TABLE_ROW_BG,
+    TABLE_RULE,
 )
-
-_ROW_WHITE = "#FFFFFF"
-_CELL_LINE = "rgba(0,0,0,0)"
 
 
 def _summary_table_figure(rows: Sequence[Tuple[str, Any]]) -> Figure:
-    """Parameter/value table styled with betaSieve report colors (no grid lines)."""
+    """Render a compact, publication-style parameter/value table."""
     labels = [r[0] for r in rows]
     values = [str(r[1]) for r in rows]
     n = len(rows)
-    row_colors = [_ROW_WHITE if i % 2 == 0 else BS_LIGHTEST for i in range(n)]
+    row_colors = [TABLE_ROW_BG if i % 2 == 0 else TABLE_ROW_ALT for i in range(n)]
 
     fig = go.Figure(
         data=[
@@ -29,34 +29,34 @@ def _summary_table_figure(rows: Sequence[Tuple[str, Any]]) -> Figure:
                     values=["Parameter", "Value"],
                     fill_color=TABLE_HEADER_BG,
                     font=dict(
-                        color=_ROW_WHITE,
-                        size=14,
-                        family=REPORT_FONT_FAMILY,
+                        color=TABLE_HEADER_TEXT,
+                        size=13,
+                        family=TABLE_FONT_FAMILY,
                     ),
                     align=["left", "left"],
-                    line=dict(color=TABLE_HEADER_BG, width=0),
-                    height=32,
+                    line=dict(color=TABLE_RULE, width=1),
+                    height=34,
                 ),
                 cells=dict(
                     values=[labels, values],
                     fill_color=[row_colors, row_colors],
                     font=dict(
-                        color=BS_DARK,
-                        size=14,
-                        family=REPORT_FONT_FAMILY,
+                        color=TABLE_CELL_TEXT,
+                        size=13,
+                        family=TABLE_FONT_FAMILY,
                     ),
                     align=["left", "left"],
-                    line=dict(color=_CELL_LINE, width=0),
-                    height=28,
+                    line=dict(color=TABLE_RULE, width=0.5),
+                    height=30,
                 ),
             )
         ]
     )
     fig.update_layout(
         margin=dict(l=12, r=12, t=8, b=8),
-        height=48 + 28 * n,
-        paper_bgcolor=_ROW_WHITE,
-        plot_bgcolor=_ROW_WHITE,
+        height=50 + 30 * n,
+        paper_bgcolor=TABLE_ROW_BG,
+        plot_bgcolor=TABLE_ROW_BG,
     )
     return fig
 
@@ -79,7 +79,7 @@ def _data_dict_figure(
     """
     n = len(rows)
     n_cols = len(headers)
-    row_colors = [_ROW_WHITE if i % 2 == 0 else BS_LIGHTEST for i in range(n)]
+    row_colors = [TABLE_ROW_BG if i % 2 == 0 else TABLE_ROW_ALT for i in range(n)]
     col_values = [[str(row[i]) for row in rows] for i in range(n_cols)]
 
     fig = go.Figure(
@@ -90,24 +90,24 @@ def _data_dict_figure(
                     values=list(headers),
                     fill_color=TABLE_HEADER_BG,
                     font=dict(
-                        color=_ROW_WHITE,
+                        color=TABLE_HEADER_TEXT,
                         size=13,
-                        family=REPORT_FONT_FAMILY,
+                        family=TABLE_FONT_FAMILY,
                     ),
                     align=["left"] * n_cols,
-                    line=dict(color=TABLE_HEADER_BG, width=0),
-                    height=32,
+                    line=dict(color=TABLE_RULE, width=1),
+                    height=34,
                 ),
                 cells=dict(
                     values=col_values,
                     fill_color=[row_colors] * n_cols,
                     font=dict(
-                        color=BS_DARK,
+                        color=TABLE_CELL_TEXT,
                         size=12,
-                        family=REPORT_FONT_FAMILY,
+                        family=TABLE_FONT_FAMILY,
                     ),
                     align=["left"] * n_cols,
-                    line=dict(color=_CELL_LINE, width=0),
+                    line=dict(color=TABLE_RULE, width=0.5),
                     height=row_height,
                 ),
             )
@@ -115,8 +115,8 @@ def _data_dict_figure(
     )
     fig.update_layout(
         margin=dict(l=12, r=12, t=8, b=8),
-        height=48 + row_height * n,
-        paper_bgcolor=_ROW_WHITE,
-        plot_bgcolor=_ROW_WHITE,
+        height=50 + row_height * n,
+        paper_bgcolor=TABLE_ROW_BG,
+        plot_bgcolor=TABLE_ROW_BG,
     )
     return fig
