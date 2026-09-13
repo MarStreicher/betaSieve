@@ -21,7 +21,9 @@ if TYPE_CHECKING:
 
 _RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
 
-_SECTION_REGISTRY: List[Callable[["SieveResults", PipelineConfig], ReportMainSection]] = [
+_SECTION_REGISTRY: List[
+    Callable[["SieveResults", PipelineConfig], ReportMainSection]
+] = [
     ConfigSection,
     DifferencesSection,
     ThresholdSweepSection,

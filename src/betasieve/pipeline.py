@@ -2,7 +2,7 @@ import pickle
 
 from epicv2io import BetasLoader
 from .analysis import SieveResults, sieve_betas
-from .config import PipelineConfig, validate_pipeline_config
+from .config import PipelineConfig
 
 
 def _pickle_intermediate_results(config: PipelineConfig, results: SieveResults):

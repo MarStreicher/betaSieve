@@ -64,9 +64,10 @@ def validate_betas_frame(cg_by_sample: pd.DataFrame) -> None:
                 f"beta values contain {n_invalid} missing or infinite value(s).",
                 UserWarning,
             )
-        if finite_mask.any() and (
-            (values[finite_mask] < 0.0) | (values[finite_mask] > 1.0)
-        ).any():
+        if (
+            finite_mask.any()
+            and ((values[finite_mask] < 0.0) | (values[finite_mask] > 1.0)).any()
+        ):
             errors.append("beta values must be between 0 and 1 (inclusive).")
 
     if len(cg_by_sample.index) > 0 and not cg_by_sample.index.hasnans:
