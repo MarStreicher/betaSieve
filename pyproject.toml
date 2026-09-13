@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "pytest-cov>=4", "black", "ruff", "mypy", "pre-commit"]
+dev = ["pytest>=7", "pytest-cov>=4", "black", "ruff==0.14.14", "mypy", "pre-commit"]
 
 [project.urls]
 Homepage = "https://github.com/MarStreicher/betaSieve"
