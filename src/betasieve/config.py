@@ -41,8 +41,8 @@ class SieveConfig:
 
 
 @dataclass
-class ReportConfig:
-    """Inputs, outputs, and analysis settings for a betaSieve run."""
+class PipelineConfig:
+    """Inputs, outputs, and analysis settings for the file-based sieve pipeline."""
 
     # Path to the betas CSV (IlmnID x samples).
     betas_path: Path
@@ -52,7 +52,7 @@ class ReportConfig:
     out_dir: Path = Path("results")
     # Generate the HTML analysis report.
     report: bool = True
-    # Write ReportConfig and SieveResults pickles to out-dir/pkl/.
+    # Write PipelineConfig and SieveResults pickles to out-dir/pkl/.
     pkl: bool = False
     # Write the CSV outputs to out-dir/csv/.
     csv_files: bool = True
@@ -147,9 +147,9 @@ def validate_sieve_config(config: SieveConfig) -> None:
     )
 
 
-def validate_report_config(args: ReportConfig) -> None:
+def validate_pipeline_config(config: PipelineConfig) -> None:
     errors: List[str] = []
-    betas_path = args.betas_path
+    betas_path = config.betas_path
     if not isinstance(betas_path, Path):
         errors.append(
             f"betas_path must be a pathlib.Path, got {type(betas_path).__name__}."
@@ -159,5 +159,5 @@ def validate_report_config(args: ReportConfig) -> None:
     elif not betas_path.is_file():
         errors.append(f"betas path is not a file: {betas_path}")
 
-    errors.extend(_sieve_config_errors(args.analysis))
+    errors.extend(_sieve_config_errors(config.analysis))
     raise_validation_errors("Invalid arguments for betaSieve", errors)

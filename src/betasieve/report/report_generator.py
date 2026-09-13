@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, TYPE_CHECKING
 
 from betasieve.columns import Col
-from betasieve.config import ReportConfig
+from betasieve.config import PipelineConfig
 from betasieve.report.report_section import ReportMainSection
 from betasieve.report.sections.experiment_config import ConfigSection
 from betasieve.report.sections.differences import DifferencesSection
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 _RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
 
-_SECTION_REGISTRY: List[Callable[["SieveResults", ReportConfig], ReportMainSection]] = [
+_SECTION_REGISTRY: List[Callable[["SieveResults", PipelineConfig], ReportMainSection]] = [
     ConfigSection,
     DifferencesSection,
     ThresholdSweepSection,
@@ -66,7 +66,7 @@ def _embed_logo() -> str:
 
 
 class SieveReportGenerator:
-    def __init__(self, results: "SieveResults", args: ReportConfig) -> None:
+    def __init__(self, results: "SieveResults", args: PipelineConfig) -> None:
         self.results = results
         self.args = args
 

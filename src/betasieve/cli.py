@@ -4,12 +4,12 @@ from typing import List, Optional
 
 import tyro
 
-from .config import ReportConfig
-from .pipeline import run_beta_sieve
+from .config import PipelineConfig
+from .pipeline import run_sieve_pipeline
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    run_beta_sieve(tyro.cli(ReportConfig, args=argv))
+    run_sieve_pipeline(tyro.cli(PipelineConfig, args=argv))
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ import pytest
 
 from betasieve.analysis import SieveResults
 from betasieve.columns import Col
-from betasieve.config import ReportConfig
+from betasieve.config import PipelineConfig
 from betasieve.report.figure_style import configure_matplotlib
 from betasieve.report.plots import _layout_figure
 from betasieve.report.report_generator import (
@@ -44,7 +44,7 @@ class ExampleMainSection(ReportMainSection):
 
 
 def test_report_section_ids_and_tree_contracts(
-    sieve_args: ReportConfig, sieve_results: SieveResults
+    sieve_args: PipelineConfig, sieve_results: SieveResults
 ) -> None:
     section = ExampleMainSection(sieve_results, sieve_args)
     child = section.subsections[0]
@@ -95,7 +95,7 @@ def test_layout_figure_sets_shared_chart_style() -> None:
 
 
 def test_range_histogram_compares_exact_replicates_with_other_groups(
-    sieve_args: ReportConfig, sieve_results: SieveResults
+    sieve_args: PipelineConfig, sieve_results: SieveResults
 ) -> None:
     section = OneDifferencesPercentageHistogram(sieve_results, sieve_args)
 
@@ -156,7 +156,7 @@ def test_resources_dir_raises_for_missing_directory(
 
 
 def test_dynamic_sections_reflect_optional_results(
-    sieve_args: ReportConfig, sieve_results: SieveResults
+    sieve_args: PipelineConfig, sieve_results: SieveResults
 ) -> None:
     fixed = ThresholdSweepSection(sieve_results, sieve_args)
     outputs = OutputDescriptionSection(sieve_results, sieve_args)
@@ -193,7 +193,7 @@ def test_dynamic_sections_reflect_optional_results(
 @pytest.mark.integration
 def test_build_report_writes_standalone_html(
     tmp_path: Path,
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
     sieve_results: SieveResults,
 ) -> None:
     output = tmp_path / "report" / "betasieve"

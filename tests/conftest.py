@@ -6,7 +6,7 @@ import pytest
 from betasieve.analysis import SieveResults
 from betasieve.cg_probe_table import DesignGroup
 from betasieve.columns import Col
-from betasieve.config import SieveConfig, ReportConfig
+from betasieve.config import SieveConfig, PipelineConfig
 from betasieve.site_statistics import _add_flags, _add_statistics
 
 
@@ -18,8 +18,8 @@ def betas_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def sieve_args(betas_path: Path, tmp_path: Path) -> ReportConfig:
-    return ReportConfig(
+def sieve_args(betas_path: Path, tmp_path: Path) -> PipelineConfig:
+    return PipelineConfig(
         betas_path=betas_path,
         analysis=SieveConfig(threshold=0.1),
         out_dir=tmp_path / "results",

@@ -5,14 +5,14 @@ import pytest
 
 from betasieve.config import (
     SieveConfig,
-    ReportConfig,
+    PipelineConfig,
     validate_sieve_config,
-    validate_report_config,
+    validate_pipeline_config,
 )
 
 
 def test_output_directory_properties_are_derived_from_root(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
 ) -> None:
     assert sieve_args.csv_dir == sieve_args.out_dir / "csv"
     assert sieve_args.figures_dir == sieve_args.out_dir / "figures"
@@ -20,12 +20,12 @@ def test_output_directory_properties_are_derived_from_root(
     assert sieve_args.pkl_dir == sieve_args.out_dir / "pkl"
 
 
-def test_validate_accepts_fixed_threshold(sieve_args: ReportConfig) -> None:
-    validate_report_config(sieve_args)
+def test_validate_accepts_fixed_threshold(sieve_args: PipelineConfig) -> None:
+    validate_pipeline_config(sieve_args)
 
 
 def test_validate_accepts_complete_threshold_sweep(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
 ) -> None:
     sieve_args.analysis = SieveConfig(
         threshold_min=0.01,
@@ -33,7 +33,7 @@ def test_validate_accepts_complete_threshold_sweep(
         threshold_step=0.01,
     )
 
-    validate_report_config(sieve_args)
+    validate_pipeline_config(sieve_args)
 
 
 @pytest.mark.parametrize(
@@ -48,7 +48,7 @@ def test_validate_accepts_complete_threshold_sweep(
     ],
 )
 def test_validate_rejects_invalid_individual_values(
-    sieve_args: ReportConfig, updates: dict, message: str
+    sieve_args: PipelineConfig, updates: dict, message: str
 ) -> None:
     analysis = replace(sieve_args.analysis, **updates)
 
@@ -64,28 +64,28 @@ def test_validate_rejects_invalid_individual_values(
     ],
 )
 def test_validate_rejects_invalid_betas_path(
-    sieve_args: ReportConfig, betas_path: object, message: str
+    sieve_args: PipelineConfig, betas_path: object, message: str
 ) -> None:
     sieve_args.betas_path = betas_path  # type: ignore[assignment]
 
     with pytest.raises(ValueError, match=message):
-        validate_report_config(sieve_args)
+        validate_pipeline_config(sieve_args)
 
 
 def test_validate_rejects_directory_as_betas_path(
-    sieve_args: ReportConfig, tmp_path: Path
+    sieve_args: PipelineConfig, tmp_path: Path
 ) -> None:
     sieve_args.betas_path = tmp_path
 
     with pytest.raises(ValueError, match="betas path is not a file"):
-        validate_report_config(sieve_args)
+        validate_pipeline_config(sieve_args)
 
 
 def test_default_config_is_a_valid_threshold_sweep() -> None:
     validate_sieve_config(SieveConfig())
 
 
-def test_validate_reports_missing_sweep_fields(sieve_args: ReportConfig) -> None:
+def test_validate_reports_missing_sweep_fields(sieve_args: PipelineConfig) -> None:
     sieve_args.analysis = SieveConfig(
         threshold_min=0.01,
         threshold_max=None,
@@ -100,7 +100,7 @@ def test_validate_reports_missing_sweep_fields(sieve_args: ReportConfig) -> None
     )
 
 
-def test_validate_requires_fixed_threshold_or_sweep(sieve_args: ReportConfig) -> None:
+def test_validate_requires_fixed_threshold_or_sweep(sieve_args: PipelineConfig) -> None:
     sieve_args.analysis = SieveConfig(
         threshold_min=None,
         threshold_max=None,
@@ -121,7 +121,7 @@ def test_validate_requires_fixed_threshold_or_sweep(sieve_args: ReportConfig) ->
     ],
 )
 def test_validate_rejects_invalid_sweep_ranges(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
     minimum: float,
     maximum: float,
     step: float,
@@ -137,7 +137,7 @@ def test_validate_rejects_invalid_sweep_ranges(
         validate_sieve_config(sieve_args.analysis)
 
 
-def test_validation_collects_multiple_errors(sieve_args: ReportConfig) -> None:
+def test_validation_collects_multiple_errors(sieve_args: PipelineConfig) -> None:
     sieve_args = replace(
         sieve_args,
         analysis=replace(
@@ -149,7 +149,7 @@ def test_validation_collects_multiple_errors(sieve_args: ReportConfig) -> None:
     )
 
     with pytest.raises(ValueError) as exc_info:
-        validate_report_config(sieve_args)
+        validate_pipeline_config(sieve_args)
 
     message = str(exc_info.value)
     assert message.startswith("Invalid arguments for betaSieve:")

@@ -8,11 +8,11 @@ import pytest
 from betasieve import cli, pipeline
 from betasieve.analysis import SieveResults
 from betasieve.columns import Col
-from betasieve.config import ReportConfig
+from betasieve.config import PipelineConfig
 
 
 def test_write_csv_outputs_writes_all_available_frames(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
     sieve_results: SieveResults,
 ) -> None:
     sieve_results.sweep_df = pd.DataFrame({Col.THRESHOLD: [0.1], Col.P0: [0.05]})
@@ -31,7 +31,7 @@ def test_write_csv_outputs_writes_all_available_frames(
 
 
 def test_write_csv_outputs_omits_optional_frames(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
     sieve_results: SieveResults,
 ) -> None:
     sieve_results.sweep_df = None
@@ -45,7 +45,7 @@ def test_write_csv_outputs_omits_optional_frames(
 
 
 def test_pickle_intermediate_results_round_trips_payloads(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
     sieve_results: SieveResults,
 ) -> None:
     pipeline._pickle_intermediate_results(sieve_args, sieve_results)
@@ -62,7 +62,7 @@ def test_pickle_intermediate_results_round_trips_payloads(
 
 
 def test_write_report_builds_generator(
-    sieve_args: ReportConfig,
+    sieve_args: PipelineConfig,
     sieve_results: SieveResults,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -91,8 +91,8 @@ def test_write_report_builds_generator(
     ("write_pickle", "write_report"),
     [(False, False), (True, True)],
 )
-def test_run_beta_sieve_orchestrates_optional_outputs(
-    sieve_args: ReportConfig,
+def test_run_sieve_pipeline_orchestrates_optional_outputs(
+    sieve_args: PipelineConfig,
     sieve_results: SieveResults,
     monkeypatch: pytest.MonkeyPatch,
     write_pickle: bool,
@@ -103,7 +103,7 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
     calls: list[str] = []
 
     monkeypatch.setattr(
-        pipeline, "validate_report_config", lambda args: calls.append("validate")
+        pipeline, "validate_pipeline_config", lambda args: calls.append("validate")
     )
 
     class FakeLoader:
@@ -136,7 +136,7 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
         lambda args, results: calls.append("report"),
     )
 
-    result = pipeline.run_beta_sieve(sieve_args)
+    result = pipeline.run_sieve_pipeline(sieve_args)
 
     expected = ["validate", "load", "analyze"]
     if write_pickle:
@@ -150,7 +150,7 @@ def test_run_beta_sieve_orchestrates_optional_outputs(
 
 def test_cli_defaults_to_automatic_threshold_search(tmp_path: Path) -> None:
     betas = tmp_path / "betas.tsv"
-    config = tyro.cli(ReportConfig, args=["--betas-path", str(betas)])
+    config = tyro.cli(PipelineConfig, args=["--betas-path", str(betas)])
 
     assert config.betas_path == betas
     assert config.analysis.threshold is None
@@ -167,7 +167,7 @@ def test_cli_defaults_to_automatic_threshold_search(tmp_path: Path) -> None:
 def test_cli_accepts_boolean_and_analysis_options(tmp_path: Path) -> None:
     betas = tmp_path / "betas.tsv"
     config = tyro.cli(
-        ReportConfig,
+        PipelineConfig,
         args=[
             "--betas-path",
             str(betas),
@@ -197,22 +197,22 @@ def test_cli_rejects_unknown_fdr_method(tmp_path: Path) -> None:
 
     with pytest.raises(SystemExit):
         tyro.cli(
-            ReportConfig,
+            PipelineConfig,
             args=["--betas-path", str(betas), "--analysis.fdr", "not-a-method"],
         )
 
 
 def test_cli_requires_betas_path() -> None:
     with pytest.raises(SystemExit):
-        tyro.cli(ReportConfig, args=[])
+        tyro.cli(PipelineConfig, args=[])
 
 
 def test_main_parses_arguments_and_runs_pipeline(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     betas = tmp_path / "betas.tsv"
-    observed: list[ReportConfig] = []
-    monkeypatch.setattr(cli, "run_beta_sieve", observed.append)
+    observed: list[PipelineConfig] = []
+    monkeypatch.setattr(cli, "run_sieve_pipeline", observed.append)
 
     cli.main(
         [

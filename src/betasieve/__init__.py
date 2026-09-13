@@ -5,24 +5,24 @@ from .analysis import (
 )
 from .config import (
     SieveConfig,
-    ReportConfig,
+    PipelineConfig,
     VALID_FDR_METHODS,
     validate_sieve_config,
-    validate_report_config,
+    validate_pipeline_config,
 )
 from .cg_probe_table import ProbeTableCol, DesignGroup
-from .pipeline import run_beta_sieve
+from .pipeline import run_sieve_pipeline
 
 __all__ = [
     "ProbeTableCol",
     "DesignGroup",
     "SieveConfig",
-    "ReportConfig",
+    "PipelineConfig",
     "SieveResults",
     "VALID_FDR_METHODS",
-    "run_beta_sieve",
+    "run_sieve_pipeline",
     "sieve_betas",
     "validate_betas_frame",
     "validate_sieve_config",
-    "validate_report_config",
+    "validate_pipeline_config",
 ]
