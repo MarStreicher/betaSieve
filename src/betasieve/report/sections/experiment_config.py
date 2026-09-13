@@ -91,8 +91,6 @@ class ConfigResultsSubSection(ReportSubSection):
         )
 
     def _summary_table(self) -> Figure:
-        args = self.args
-        config = args.analysis
         flagged = self.results.flagged_frame
         group = flagged[Col.GROUP]
 
