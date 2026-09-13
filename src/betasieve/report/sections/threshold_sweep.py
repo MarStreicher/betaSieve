@@ -92,11 +92,11 @@ class ThresholdSweepSection(ReportMainSection):
                 "threshold sensitivity curves are not available."
             )
         return (
-            "The threshold t that separates assay noise from genuine probe disagreement "
+            "The threshold <em>t</em> that separates assay noise from genuine probe disagreement "
             "was selected automatically by sweeping a range of candidate values. "
-            "For each candidate t, the empirical background exceedance rate p₀ was "
+            "For each candidate <em>t</em>, the empirical background exceedance rate <em>p₀</em> was "
             "computed from exact-replicate sites. "
-            "The smallest t for which p₀ fell at or below the target proportion p₀ was chosen as "
+            "The smallest <em>t</em> for which <em>p₀</em> fell at or below the target proportion <em>p₀</em> was chosen as "
             "the final threshold."
         )
 
@@ -126,21 +126,21 @@ class FixedThresholdPlaceholderSubSection(ReportSubSection):
     def _plot(self) -> Figure:
         return _fixed_threshold_placeholder(self.results.threshold)
 
-    def generate(self) -> None:
-        self.figures.append(self._plot())
+    def _figures(self):
+        return [self._plot()]
 
 
 class P0SubSection(ReportSubSection):
     @property
     def title(self) -> str:
-        return "Background Exceedance Rate p₀ vs Threshold"
+        return "Background exceedance rate <em>p₀</em> vs threshold"
 
     @property
     def description(self) -> str:
         return (
-            "The empirical background exceedance rate p₀ is the fraction of "
-            "(exact-replicate site, sample) pairs for which the β-values max–min range "
-            "exceeds the candidate threshold t. "
+            "The empirical background exceedance rate <em>p₀</em> is the fraction of "
+            "exact replicate CpG-site-sample pairs for which the β-values max-min difference "
+            "exceeds the candidate threshold <em>t</em>. "
         )
 
     def _plot(self) -> Figure:
@@ -158,7 +158,7 @@ class P0SubSection(ReportSubSection):
                 x=subset[Col.THRESHOLD],
                 y=subset[Col.P0],
                 mode="lines+markers",
-                name="p₀ (exact replicates)",
+                name="<i>p₀</i> (exact replicates)",
                 line=dict(color=BS_GREEN),
                 marker=dict(color=BS_GREEN),
             )
@@ -166,15 +166,15 @@ class P0SubSection(ReportSubSection):
         _add_selected_threshold_vline(fig, threshold)
         return _layout_figure(
             fig,
-            title="Empirical background exceedance rate p₀ vs threshold t",
-            x_title="Threshold t",
-            y_title="p₀ (background exceedance rate)",
+            title="Empirical background exceedance rate <i>p₀</i> vs threshold <i>t</i>",
+            x_title="Threshold <i>t</i>",
+            y_title="<i>p₀</i> (background exceedance rate)",
             height=360,
             show_legend=False,
         )
 
-    def generate(self) -> None:
-        self.figures.append(self._plot())
+    def _figures(self):
+        return [self._plot()]
 
 
 class BetaSection(ReportSubSection):
@@ -185,8 +185,8 @@ class BetaSection(ReportSubSection):
     @property
     def description(self) -> str:
         return (
-            "Percentage of CpG sites per design group for which the FDR-adjusted "
-            "empirical upper-tail p-value falls below α, plotted over the "
+            "Percentage of CpG-sites per replicate group for which the FDR-adjusted "
+            "empirical upper-tail p-value falls below <em>α</em>, plotted over the "
             "threshold candidates. "
             "The dotted vertical line marks the selected threshold."
         )
@@ -201,14 +201,14 @@ class BetaSection(ReportSubSection):
         _add_selected_threshold_vline(fig, self.results.threshold)
         return _layout_figure(
             fig,
-            title="Adjusted empirical flag rate vs threshold t",
-            x_title="Threshold t",
-            y_title="Sites with p-value < α (%)",
+            title="Adjusted empirical flag rate vs threshold <i>t</i>",
+            x_title="Threshold <i>t</i>",
+            y_title="Sites with p-value &lt; <i>α</i> (%)",
             height=400,
         )
 
-    def generate(self) -> None:
-        self.figures.append(self._plot())
+    def _figures(self):
+        return [self._plot()]
 
 
 class ThresholdSummaryTableSubSection(ReportSubSection):
@@ -219,7 +219,7 @@ class ThresholdSummaryTableSubSection(ReportSubSection):
     @property
     def description(self) -> str:
         return (
-            "The final threshold t and corresponding background exceedance rate p₀ "
+            "The final threshold <em>t</em> and corresponding background exceedance rate <em>p₀</em> "
             "used for all downstream statistical tests and figures."
         )
 
@@ -227,12 +227,12 @@ class ThresholdSummaryTableSubSection(ReportSubSection):
         flagged = self.results.flagged_frame
         rows = [
             (
-                "Threshold t",
+                "Threshold 𝑡",
                 round(float(flagged[Col.THRESHOLD].iloc[0]), 4),
             ),
-            ("Background exceedance rate p₀", round(float(flagged[Col.P0].iloc[0]), 4)),
+            ("Background exceedance rate 𝑝₀", round(float(flagged[Col.P0].iloc[0]), 4)),
         ]
         return _summary_table_figure(rows)
 
-    def generate(self) -> None:
-        self.figures.append(self._summary_table())
+    def _figures(self):
+        return [self._summary_table()]

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, final
+from typing import TYPE_CHECKING, List, Sequence, final
 
 if TYPE_CHECKING:
     from betasieve.analysis import SieveResults
@@ -51,8 +51,10 @@ class ReportMainSection(ReportSection):
 
 class ReportSubSection(ReportSection):
     """
-    A leaf section that owns figures.  Implement ``generate()`` to
-    populate ``self.figures`` with Plotly Figure objects.
+    A leaf section that owns figures.
+
+    Implement ``_figures()`` to return the Plotly figures (or HTML snippets)
+    for this subsection. ``generate()`` appends them to ``self.figures``.
     """
 
     @property
@@ -67,6 +69,8 @@ class ReportSubSection(ReportSection):
         self.figures: list = []
 
     @abstractmethod
+    def _figures(self) -> Sequence[object]: ...
+
+    @final
     def generate(self) -> None:
-        """Populate ``self.figures`` from ``self.results`` and ``self.args``."""
-        ...
+        self.figures.extend(self._figures())

@@ -9,7 +9,7 @@ from betasieve.analysis import SieveResults
 from betasieve.columns import Col
 from betasieve.config import PipelineConfig
 from betasieve.report.figure_style import configure_matplotlib
-from betasieve.report.plots import _layout_figure
+from betasieve.report.plots import ABS_Y_TITLE, _layout_figure
 from betasieve.report.report_generator import (
     SieveReportGenerator,
     _embed_image,
@@ -18,8 +18,13 @@ from betasieve.report.report_generator import (
     _resources_dir,
 )
 from betasieve.report.report_section import ReportMainSection, ReportSubSection
-from betasieve.report.sections.differences import OneDifferencesPercentageHistogram
+from betasieve.report.sections.differences import (
+    DifferencesSection,
+    ExactVsOtherDifferencesHistogram,
+    GroupedDifferencesHistogram,
+)
 from betasieve.report.sections.output_description import OutputDescriptionSection
+from betasieve.report.sections.p_hat_distribution import PhatHistogram
 from betasieve.report.sections.threshold_sweep import ThresholdSweepSection
 from betasieve.report.tables import _data_dict_figure, _summary_table_figure
 
@@ -29,8 +34,8 @@ class ExampleSubSection(ReportSubSection):
     def title(self) -> str:
         return "Example Child"
 
-    def generate(self) -> None:
-        self.figures.append("<p>generated</p>")
+    def _figures(self):
+        return ["<p>generated</p>"]
 
 
 class ExampleMainSection(ReportMainSection):
@@ -71,10 +76,12 @@ def test_table_factories_encode_values_and_size() -> None:
         ["Alpha", "Beta"],
         ["1", "two"],
     )
-    assert summary.layout.height == 104
+    assert summary.layout.height == 110
+    assert summary.data[0].header.font.family == "Montserrat, Arial, sans-serif"
+    assert summary.data[0].cells.font.family == "Montserrat, Arial, sans-serif"
     assert data_dict.data[0].header.values == ("Name", "Meaning")
     assert data_dict.data[0].columnwidth == (0.3, 0.7)
-    assert data_dict.layout.height == 128
+    assert data_dict.layout.height == 130
 
 
 def test_layout_figure_sets_shared_chart_style() -> None:
@@ -92,24 +99,68 @@ def test_layout_figure_sets_shared_chart_style() -> None:
     assert figure.layout.yaxis.title.text == "Y"
     assert figure.layout.height == 321
     assert figure.layout.showlegend is False
+    assert figure.layout.font.family == "Arial, Helvetica, sans-serif"
 
 
 def test_range_histogram_compares_exact_replicates_with_other_groups(
     sieve_args: PipelineConfig, sieve_results: SieveResults
 ) -> None:
-    section = OneDifferencesPercentageHistogram(sieve_results, sieve_args)
+    section = ExactVsOtherDifferencesHistogram(sieve_results, sieve_args)
 
     figure = section._plot()
 
     assert [trace.name for trace in figure.data] == [
         "Exact replicates",
-        "Other design groups",
+        "Design replicates",
     ]
-    assert all(trace.histnorm == "percent" for trace in figure.data)
+    assert all(not trace.histnorm for trace in figure.data)
     assert figure.data[0].xbins == figure.data[1].xbins
     assert figure.data[0].xbins.size == pytest.approx(0.003)
-    assert figure.layout.width == 700
-    assert figure.layout.yaxis.title.text == "Percentage of observations"
+    assert figure.layout.yaxis.title.text == ABS_Y_TITLE
+    buttons = figure.layout.updatemenus[0].buttons
+    assert [button.label for button in buttons] == ["Absolute", "Percentage"]
+
+
+def test_group_histogram_has_abs_pct_toggle(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    section = GroupedDifferencesHistogram(sieve_results, sieve_args)
+
+    figure = section._plot()
+
+    assert [trace.name for trace in figure.data] == [
+        "Pair type",
+        "Pair design",
+        "Exact replicates",
+    ]
+    assert all(trace.xbins == figure.data[0].xbins for trace in figure.data)
+    buttons = figure.layout.updatemenus[0].buttons
+    assert [button.label for button in buttons] == ["Absolute", "Percentage"]
+
+
+def test_phat_histogram_has_abs_pct_toggle(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    figure = PhatHistogram(sieve_results, sieve_args)._plot()
+
+    buttons = figure.layout.updatemenus[0].buttons
+    assert [button.label for button in buttons] == ["Absolute", "Percentage"]
+    assert figure.layout.yaxis.title.text == "Number of CpG-sites"
+
+
+def test_differences_section_omits_absolute_only_histogram(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    names = [
+        cls.__name__
+        for cls in DifferencesSection(sieve_results, sieve_args).subsection_types
+    ]
+    assert names[:3] == [
+        "ExactVsOtherDifferencesHistogram",
+        "GroupedDifferencesHistogram",
+        "GroupedDifferencesBoxplot",
+    ]
+    assert "DifferencesHistogram" not in names
 
 
 def test_configure_matplotlib_applies_shared_defaults() -> None:
@@ -203,8 +254,8 @@ def test_build_report_writes_standalone_html(
     assert result == output.with_suffix(".html")
     html = result.read_text(encoding="utf-8")
     assert "<title>betaSieve Report</title>" in html
-    assert "Analysis Configuration" in html
-    assert "Probe Range Analysis" in html
+    assert "Configuration" in html
+    assert "Max-Min Differences" in html
     assert "Output Files" in html
     assert "<strong>2</strong> probes" in html
     assert "data:image/" in html

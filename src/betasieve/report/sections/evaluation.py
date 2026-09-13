@@ -21,13 +21,6 @@ from betasieve.report.tables import _summary_table_figure
 
 
 def _null_models(results: SieveResults) -> NullModels:
-    if results.null_models is None:
-        raise ValueError(
-            "SieveResults carries no fitted null models. Re-run the analysis; "
-            "results pickled before null_models was introduced cannot be reported "
-            "on without re-fitting, which would risk disagreeing with the "
-            "p-value columns."
-        )
     return results.null_models
 
 
@@ -46,10 +39,39 @@ def _null_cutoffs(models: NullModels) -> List[_Cutoff]:
         ("Empirical", models.empirical.critical_p_hat(alpha), "#2563EB", "dashdot"),
     )
     return [
-        _Cutoff(f"{name} threshold (p̂={p_hat:.3f})", p_hat, color, dash)
+        _Cutoff(f"{name} threshold (<i>p̂</i>={p_hat:.3f})", p_hat, color, dash)
         for name, p_hat, color, dash in specs
         if p_hat is not None
     ]
+
+
+def _add_cutoff_vlines(fig: Figure, cutoffs: List[_Cutoff]) -> None:
+    """Draw cutoffs as traces so legend clicks hide the lines."""
+    fig.update_layout(
+        yaxis2=dict(
+            overlaying="y",
+            side="right",
+            range=[0, 1],
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            showline=False,
+            ticks="",
+        )
+    )
+    for cutoff in cutoffs:
+        fig.add_trace(
+            go.Scatter(
+                x=[cutoff.p_hat, cutoff.p_hat],
+                y=[0, 1],
+                mode="lines",
+                yaxis="y2",
+                name=cutoff.label,
+                line=dict(color=cutoff.color, width=2, dash=cutoff.dash),
+                hoverinfo="skip",
+                showlegend=True,
+            )
+        )
 
 
 def _group_fill(color: str) -> str:
@@ -65,10 +87,10 @@ class EvaluationSection(ReportMainSection):
     @property
     def description(self) -> str:
         return (
-            "Comparison of three null representations for site-level exceedance rates: "
-            "the observed exact-replicate distribution, the Binomial(n, p₀) model, "
+            "Comparison of three null representations for CpG-site-level exceedance rates: "
+            "the observed exact replicate distribution, the Binomial(<em>n</em>, <em>p₀</em>) model, "
             "and a method-of-moments Beta-Binomial model. The adjusted empirical "
-            "upper-tail test is the primary flagging criterion; the model-based "
+            "upper-tail test is the primary flagging criterion and the model-based "
             "distributions are shown as diagnostics."
         )
 
@@ -84,22 +106,20 @@ class EvaluationSection(ReportMainSection):
 class H0Histogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "Empirical and Modelled Exact-Replicate Null Distributions"
+        return "Empirical and Modelled exact replicate Null Distributions"
 
     @property
     def description(self) -> str:
         return (
-            "Observed distribution of the exceedance rate p̂ at exact-replicate "
-            "sites (bars), with the fitted Binomial(n, p₀) PMF (dashed black) and "
+            "Observed distribution of the exceedance rate <em>p̂</em> at exact replicate "
+            "CpG-sites (bars), with the fitted Binomial(<em>n</em>, <em>p₀</em>) PMF (dashed black) and "
             "Beta-Binomial PMF (dotted green) overlaid. "
-            "All three are expressed as a percentage of exact-replicate sites, so "
+            "All three are expressed as a percentage of exact replicate CpG-sites, so "
             "bar heights and PMF values are directly comparable. "
             "The Beta-Binomial parameters are estimated by the method of moments "
-            "from the empirical variance of p̂. "
-            "The y-axis is scaled to the p̂ > 0 range, so the dominant p̂ = 0 bar is "
-            "deliberately clipped. "
-            "Vertical lines mark the minimum p̂ meeting each unadjusted one-sided "
-            "significance criterion at level α. Final candidate selection additionally "
+            "from the empirical variance of <em>p̂</em>. "
+            "Vertical lines mark the minimum <em>p̂</em> meeting each unadjusted one-sided "
+            "significance criterion at level <em>α</em>. Final candidate selection additionally "
             "applies the configured multiple-testing correction."
         )
 
@@ -134,7 +154,7 @@ class H0Histogram(ReportSubSection):
                 x=x_pmf,
                 y=binom_y,
                 mode="lines",
-                name=f"Binomial null (p₀={models.binomial.p0:.3f})",
+                name=f"Binomial null (<i>p₀</i>={models.binomial.p0:.3f})",
                 line=dict(color=BS_DARK, width=2, dash="dash"),
             )
         )
@@ -147,7 +167,7 @@ class H0Histogram(ReportSubSection):
                 mode="lines",
                 name=(
                     f"Beta-Binomial fit "
-                    f"(α={models.beta_binomial.a:.3g}, β={models.beta_binomial.b:.3g})"
+                    f"(<i>α</i>={models.beta_binomial.a:.3g}, <i>β</i>={models.beta_binomial.b:.3g})"
                 ),
                 line=dict(color=BS_GREEN, width=2, dash="dot"),
             )
@@ -186,8 +206,8 @@ class H0Histogram(ReportSubSection):
         fig_out = _layout_figure(
             fig,
             title="Empirical, Binomial, and Beta-Binomial null comparison",
-            x_title="p̂ (observed exceedance rate)",
-            y_title="% of exact-replicate sites",
+            x_title="<i>p̂</i> (observed exceedance rate)",
+            y_title="% of exact replicate CpG-sites",
             height=400,
         )
         fig_out.update_layout(
@@ -196,25 +216,24 @@ class H0Histogram(ReportSubSection):
         )
         return fig_out
 
-    def generate(self) -> None:
-        self.figures.append(self._plot())
+    def _figures(self):
+        return [self._plot()]
 
 
 class AllGroupsThresholdHistogram(ReportSubSection):
     @property
     def title(self) -> str:
-        return "p̂ Distribution Across Design Groups and Null Cutoffs"
+        return "<em>p̂</em> distribution across design replicates subgroups and null cutoffs"
 
     @property
     def description(self) -> str:
         return (
-            "Distribution of the observed exceedance rate p̂ for non-replicate "
-            "design groups (pairs, triplets, quadruplets), with the unadjusted "
-            "empirical, Binomial, and Beta-Binomial significance cutoffs overlaid. "
-            "Each group is normalised to its own site count, since the groups differ "
-            "by orders of magnitude in size. "
-            "These lines permit comparison of the three null approaches; final "
-            "discordance calls use the multiple-testing-adjusted empirical p-value."
+            "Distribution of the observed exceedance rate <em>p̂</em> for design replicate "
+            "subgroups, with the "
+            "unadjusted empirical, Binomial, and Beta-Binomial significance cutoffs "
+            "overlaid. Each group is normalised to its own site count, since the groups "
+            "differ by orders of magnitude in size. "
+            "Click a cutoff in the legend to hide or show its vertical line."
         )
 
     def _plot(self) -> Figure:
@@ -266,36 +285,20 @@ class AllGroupsThresholdHistogram(ReportSubSection):
             + 0.02
         )
 
-        for cutoff in cutoffs:
-            fig.add_vline(
-                x=cutoff.p_hat,
-                line_color=cutoff.color,
-                line_width=2,
-                line_dash=cutoff.dash,
-            )
-            fig.add_trace(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="lines",
-                    name=cutoff.label,
-                    line=dict(color=cutoff.color, width=2, dash=cutoff.dash),
-                    showlegend=True,
-                )
-            )
+        _add_cutoff_vlines(fig, cutoffs)
 
         fig_out = _layout_figure(
             fig,
-            title="p̂ distribution by design group with three null cutoffs",
-            x_title="p̂ (observed exceedance rate)",
-            y_title="% of sites in design group",
+            title="<i>p̂</i> distribution by design replicate group with three null cutoffs",
+            x_title="<i>p̂</i> (observed exceedance rate)",
+            y_title="% of CpG-sites in replicate group",
             height=420,
         )
         fig_out.update_layout(xaxis=dict(range=[0, x_max]))
         return fig_out
 
-    def generate(self) -> None:
-        self.figures.append(self._plot())
+    def _figures(self):
+        return [self._plot()]
 
 
 class EvaluationSummaryTableSubSection(ReportSubSection):
@@ -318,30 +321,33 @@ class EvaluationSummaryTableSubSection(ReportSubSection):
         beta_binomial = models.beta_binomial
         rows = [
             ("Threshold", round(models.threshold, 4)),
-            ("p₀", round(models.binomial.p0, 4)),
-            ("Exact-replicate sites (m)", f"{models.empirical.m:,}"),
-            ("Samples (n)", f"{models.n:,}"),
+            ("𝑝₀", round(models.binomial.p0, 4)),
+            ("exact replicate CpG-sites (𝑚)", f"{models.empirical.m:,}"),
+            ("Samples (𝑛)", f"{models.n:,}"),
             (
                 "Beta-Binomial fit",
-                f"α={beta_binomial.a:.4g}, β={beta_binomial.b:.4g}",
+                f"𝛼={beta_binomial.a:.4g}, 𝛽={beta_binomial.b:.4g}",
             ),
             (
-                "Sites with empirical flag",
+                "CpG-sites with empirical flag",
                 f"{int(flagged[Col.P_EMPIR_FLAG].sum()):,}",
             ),
             (
-                "Sites with adjusted empirical flag",
+                "CpG-sites with adjusted empirical flag",
                 f"{int(flagged[Col.P_EMPIR_ADJ_FLAG].sum()):,}",
             ),
             (
-                "Sites with adjusted Beta-Binomial flag",
+                "CpG-sites with adjusted Beta-Binomial flag",
                 f"{int(flagged[Col.P_BETA_ADJ_FLAG].sum()):,}",
             ),
-            ("Sites with CI flag", f"{int(flagged[Col.CI_FLAG].sum()):,}"),
-            ("Sites with p-flag", f"{int(flagged[Col.P_FLAG].sum()):,}"),
-            ("Sites with adjusted p-flag", f"{int(flagged[Col.P_ADJ_FLAG].sum()):,}"),
+            ("CpG-sites with CI flag", f"{int(flagged[Col.CI_FLAG].sum()):,}"),
+            ("CpG-sites with p-flag", f"{int(flagged[Col.P_FLAG].sum()):,}"),
+            (
+                "CpG-sites with adjusted p-flag",
+                f"{int(flagged[Col.P_ADJ_FLAG].sum()):,}",
+            ),
         ]
         return _summary_table_figure(rows)
 
-    def generate(self) -> None:
-        self.figures.append(self._summary_table())
+    def _figures(self):
+        return [self._summary_table()]

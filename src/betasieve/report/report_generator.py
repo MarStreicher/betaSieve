@@ -19,7 +19,6 @@ from betasieve.report.sections.output_description import OutputDescriptionSectio
 if TYPE_CHECKING:
     from betasieve.analysis import SieveResults
 
-_RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
 
 _SECTION_REGISTRY: List[
     Callable[["SieveResults", PipelineConfig], ReportMainSection]
@@ -33,6 +32,14 @@ _SECTION_REGISTRY: List[
 ]
 
 
+_RESOURCES_DIR = Path(__file__).resolve().parent / "resources"
+
+_FONT_FILES = {
+    "resources/fonts/Montserrat-VariableFont_wght.ttf": "fonts/Montserrat-VariableFont_wght.ttf",
+    "resources/fonts/Montserrat-Italic-VariableFont_wght.ttf": "fonts/Montserrat-Italic-VariableFont_wght.ttf",
+}
+
+
 @lru_cache(maxsize=1)
 def _resources_dir() -> Path:
     if not _RESOURCES_DIR.is_dir():
@@ -42,9 +49,18 @@ def _resources_dir() -> Path:
     return _RESOURCES_DIR
 
 
+def _resource_path(name: str) -> Path:
+    return _resources_dir() / name
+
+
 def _read_resource(filename: str) -> str:
     path = _resources_dir() / filename
     return path.read_text(encoding="utf-8")
+
+
+def _file_to_data_uri(path: Path, mime: str) -> str:
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{b64}"
 
 
 def _embed_image(filename: str, mime: str) -> str:
@@ -74,6 +90,10 @@ class SieveReportGenerator:
 
     def _generate_style(self) -> str:
         css = _read_resource("template.css")
+        for src, resource_name in _FONT_FILES.items():
+            css = css.replace(
+                src, _file_to_data_uri(_resource_path(resource_name), "font/ttf")
+            )
         return f"<style>{css}</style>"
 
     def _generate_preamble(self) -> str:
@@ -96,38 +116,35 @@ class SieveReportGenerator:
         n_flagged_probes = int(len(r.candidate_cpgs))
 
         return (
-            f"<p>This report documents the duplicate-probe variability analysis "
+            f"<p>This report documents the <strong>betaSieve</strong> analysis "
             f"of cg-only probes "
-            f"performed by <strong>betaSieve</strong> on data from the "
+            f"on data from the "
             f"<strong>Infinium&#x2122; MethylationEPIC v2.0 BeadChip (EPICv2)</strong>. "
-            f"The EPICv2 array contains multiple probes targeting the same "
-            f"CpG site by different chemical designs or as exact replicates. "
-            f"For each such duplicate group and each sample, the <em>max–min range</em> "
-            f"of the given &beta;-values across all probes in the group was computed. "
-            f"This statistic measures the spread of methylation estimates at nominally "
-            f"identical genomic positions and serves as indicator of "
-            f"probe-level disagreement.</p>"
-            f"<p>In total, <strong>{n_sites:,}</strong> CpG sites across five design "
-            f"groups were analysed: pairs by probe type, pairs by probe design, "
-            f"triplets, quadruplets, and exact replicates. The "
-            f"<strong>pairs by probe type</strong> group includes sites with two "
-            f"designs that differ only in probe type (TC1 and TC2, or BC1 and BC2). "
-            f"The <strong>pairs by probe design</strong> group includes all other "
-            f"sites with exactly two designs. The <strong>triplets</strong> and "
-            f"<strong>quadruplets</strong> groups include sites with three or four "
-            f"different designs, respectively. The <strong>exact replicates</strong> "
-            f"group includes only technical replicates of the same probe design.</p>"
-            f"<p>A difference threshold of <em>t</em>&nbsp;=&nbsp;{threshold_val:.2f} "
+            f"Please refer to [COMING SOON] for further information.</p>"
+            f"<p><strong>Results:</strong> "
+            f"In total, <strong>{n_sites:,}</strong> CpG-sites were analysed. "
+            f"A difference threshold of <em>t</em>&nbsp;=&nbsp;{threshold_val:.2f} "
             f"({threshold_source}) was applied and the empirical background exceedance "
-            f"rate at exact-replicate sites was "
-            f"p&#x2080;&nbsp;=&nbsp;{p0_val:.2f}. "
+            f"rate at exact-replicate CpG-sites was "
+            f"<em>p&#x2080;</em>&nbsp;=&nbsp;{p0_val:.2f}. "
             f"Statistical significance was assessed at "
-            f"&#x03B1;&nbsp;=&nbsp;{alpha:.2f}, with FDR "
-            f"correction applied across non-replicate sites. "
-            f"<strong>{n_flagged:,}</strong> sites ({pct_flagged:.1f}&#x25;), therefore, "
+            f"<em>&#x03B1;</em>&nbsp;=&nbsp;{alpha:.2f}, with FDR "
+            f"correction applied across design replicate CpG-sites. "
+            f"<strong>{n_flagged:,}</strong> CpG-sites ({pct_flagged:.1f}&#x25;), therefore, "
             f"<strong>{n_flagged_probes}</strong> probes, were "
             f"flagged as discordant based on the multiple-testing-adjusted empirical "
             f"upper-tail p-value.</p>"
+            f"<p><strong>Definitions:</strong> "
+            f"CpG-sites were analysed in two replicate classes: "
+            f"<strong>exact replicates</strong> and <strong>design replicates</strong>. "
+            f"Design replicates comprise four subgroups of sites with different probe designs: "
+            f"<strong>pair type</strong> (two designs that differ only in probe type, "
+            f"TC1 and TC2, or BC1 and BC2), "
+            f"<strong>pair design</strong> (all remaining sites with exactly two designs), "
+            f"<strong>triplets</strong>, and <strong>quadruplets</strong> "
+            f"(three or four different designs, respectively). "
+            f"<strong>Exact replicates</strong> are technical replicates of the same "
+            f"probe design.</p>"
         )
 
     def _generate_toc(
@@ -200,7 +217,7 @@ class SieveReportGenerator:
         template = _read_resource("template.html")
         html = template.format(
             tab_title="betaSieve Report",
-            report_title="EPICv2 Duplicate Probe Analysis",
+            report_title="Replicate Analysis",
             style=style,
             logo_uri=logo_uri,
             toc_items=toc,

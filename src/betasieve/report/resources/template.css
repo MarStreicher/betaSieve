@@ -12,6 +12,7 @@
   --bs-dark:     #2F3437;
   --bs-mid:      #5F6F64;
   --bs-green:    #4A934A;
+  --bs-green-line: #67c624;
   --bs-green-dark: #367336;
   --bs-green-soft: #E8F3E8;
   --bs-green-pale: #F3F8F3;
@@ -19,8 +20,8 @@
   --bs-lightest: #F3F8F3;
 
   --text:   #2F3437;
-  --muted:  #5F6F64;
-  --muted-2: #6F8172;
+  --muted:  #2F3437;
+  --muted-2: #5F6F64;
   --border: #D7E5D7;
   --panel:  #F3F8F3;
   --panel-strong: #E8F3E8;
@@ -30,13 +31,29 @@
   --content-pad: 24px;
   --content-max: 1250px;
 }
+/* ---------- Report font ---------- */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('resources/fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  src: url('resources/fonts/Montserrat-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
 
 /* ---------- Base ---------- */
 html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Montserrat', Arial, sans-serif;
   color: var(--text);
   display: grid;
   grid-template-columns: var(--toc-width) 1fr;
@@ -96,7 +113,7 @@ code {
   padding: 20px;
   box-sizing: border-box;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.45;
 }
 
@@ -110,8 +127,8 @@ code {
 .toc h2 {
   margin: 0 0 14px 0;
   font-family: inherit;
-  font-size: 14px;
-  color: var(--bs-dark);
+  font-size: 16px;
+  color: var(--bs-green-dark);
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
@@ -119,9 +136,9 @@ code {
 .toc a {
   display: block;
   margin-bottom: 8px;
-  color: var(--bs-dark);
+  color: var(--bs-green-dark);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .toc a:hover { color: var(--bs-green); }
@@ -133,8 +150,8 @@ code {
 
 .toc-item.level-1 {
   padding-left: 16px;
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 15px;
+  color: var(--bs-green-dark);
 }
 
 .toc-item:hover {
@@ -196,7 +213,7 @@ code {
 
 /* ---------- Report title ---------- */
 .report-title {
-  font-size: 38px;
+  font-size: 48px;
   line-height: 1.15;
   margin: 0 0 16px 0;
   padding-top: 8px;
@@ -216,14 +233,12 @@ code {
 .section h2 {
   margin: 20px 0 8px 0;
   font-size: 22px;
-  color: var(--bs-dark);
+  color: var(--bs-green-dark);
   font-weight: 700;
   padding-left: 12px;
-  border-left: 4px solid var(--bs-green);
-  background: linear-gradient(90deg, var(--bs-green-pale), transparent 72%);
+  border-left: 4px solid var(--bs-green-line);
   padding-top: 6px;
   padding-bottom: 6px;
-  border-radius: 0 6px 6px 0;
 }
 
 .section h3 {
@@ -256,7 +271,7 @@ code {
 .stat-value {
   padding: 8px 12px;
   font-weight: 600;
-  color: var(--bs-dark);
+  color: var(--text);
 }
 
 /* ---------- Plotly containers ---------- */
@@ -296,7 +311,7 @@ code {
 .footer-tagline {
   margin: 0;
   font-size: 0.85em;
-  color: var(--bs-mid);
+  color: var(--text);
   font-style: italic;
 }
 

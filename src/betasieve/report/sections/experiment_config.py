@@ -11,7 +11,7 @@ from betasieve.report.tables import _summary_table_figure
 class ConfigSection(ReportMainSection):
     @property
     def title(self) -> str:
-        return "Analysis Configuration"
+        return "Configuration"
 
     @property
     def description(self) -> str:
@@ -33,11 +33,8 @@ class ConfigSubSection(ReportSubSection):
     @property
     def description(self) -> str:
         return (
-            "The table summarizes the analysis parameters used by betaSieve. "
-            "You can specify the threshold t directly or determine it automatically through a threshold sweep. "
-            "If you provide t, the empirical background exceedance rate p₀ is calculated as the fraction of sites in the exact replicates that exceed this threshold. "
-            "Alternatively, you can provide a threshold range and a target p₀. "
-            "betaSieve then performs a threshold sweep and selects the threshold t that most closely matches your target background exceedance rate."
+            "The table summarizes the analysis parameters used by <strong>betaSieve</strong>. "
+            "Please note that you can specify the threshold <em>t</em> directly or determine it automatically through a threshold sweep. "
         )
 
     def _summary_table(self) -> Figure:
@@ -47,14 +44,14 @@ class ConfigSubSection(ReportSubSection):
         rows = [
             ("Betas file", str(args.betas_path)),
             (
-                ("Threshold", str(config.threshold))
+                ("Threshold 𝑡", str(config.threshold))
                 if config.threshold is not None
-                else ("Threshold", "not used (threshold sweep)")
+                else ("Threshold 𝑡", "not used (threshold sweep)")
             ),
             ("Confidence", str(config.confidence)),
             ("FDR method", config.fdr),
             (
-                "Target p₀ (threshold sweep)",
+                "Target 𝑝₀ (threshold sweep)",
                 (
                     str(config.target_p0)
                     if config.threshold is None
@@ -73,8 +70,8 @@ class ConfigSubSection(ReportSubSection):
         ]
         return _summary_table_figure(rows)
 
-    def generate(self) -> None:
-        self.figures.append(self._summary_table())
+    def _figures(self):
+        return [self._summary_table()]
 
 
 class ConfigResultsSubSection(ReportSubSection):
@@ -86,10 +83,10 @@ class ConfigResultsSubSection(ReportSubSection):
     def description(self) -> str:
         return (
             "Key statistics derived from the input data and analysis results. "
-            "Site counts are reported per design group. Please note that individual CpG "
-            "sites may appear in more than one group (e.g. a site belonging to both "
-            "a pair and to exact replicates). "
-            "The selected threshold t and corresponding p₀ are the values used for "
+            "Please note that individual CpG-sites may appear in more than one "
+            "replicate group (e.g. a CpG-site belonging to both pair type "
+            "and to exact replicates). "
+            "The selected threshold <em>t</em> and corresponding <em>p₀</em> are the values used for "
             "all downstream statistical tests and figures."
         )
 
@@ -100,8 +97,8 @@ class ConfigResultsSubSection(ReportSubSection):
         group = flagged[Col.GROUP]
 
         rows = [
-            ("Number of samples (n)", int(flagged[Col.N].iloc[0])),
-            ("Total CpG sites analysed", f"{len(flagged):,}"),
+            ("Number of samples (𝑛)", int(flagged[Col.N].iloc[0])),
+            ("Total CpG-sites analysed", f"{len(flagged):,}"),
             (
                 f"{DesignGroup.PAIR_TYPE.value} sites",
                 int((group == DesignGroup.PAIR_TYPE).sum()),
@@ -122,13 +119,12 @@ class ConfigResultsSubSection(ReportSubSection):
                 f"{DesignGroup.EXACT_REPLICATES.value} sites",
                 int((group == DesignGroup.EXACT_REPLICATES).sum()),
             ),
-            ("FDR correction method", config.fdr),
             (
-                "Selected threshold t",
+                "Selected threshold 𝑡",
                 round(float(flagged[Col.THRESHOLD].iloc[0]), 4),
             ),
             (
-                "Background exceedance rate p₀",
+                "Background exceedance rate 𝑝₀",
                 round(float(flagged[Col.P0].iloc[0]), 4),
             ),
             (
@@ -142,5 +138,5 @@ class ConfigResultsSubSection(ReportSubSection):
         ]
         return _summary_table_figure(rows)
 
-    def generate(self) -> None:
-        self.figures.append(self._summary_table())
+    def _figures(self):
+        return [self._summary_table()]
