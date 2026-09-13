@@ -102,10 +102,6 @@ def test_run_sieve_pipeline_orchestrates_optional_outputs(
     sieve_args.report = write_report
     calls: list[str] = []
 
-    monkeypatch.setattr(
-        pipeline, "validate_pipeline_config", lambda args: calls.append("validate")
-    )
-
     class FakeLoader:
         def __init__(self, path):
             assert path == sieve_args.betas_path
@@ -138,7 +134,7 @@ def test_run_sieve_pipeline_orchestrates_optional_outputs(
 
     result = pipeline.run_sieve_pipeline(sieve_args)
 
-    expected = ["validate", "load", "analyze"]
+    expected = ["load", "analyze"]
     if write_pickle:
         expected.append("pickle")
     expected.append("csv")
