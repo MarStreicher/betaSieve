@@ -1,0 +1,259 @@
+from pathlib import Path
+
+import pandas as pd
+import plotly.graph_objects as go
+import pytest
+
+from betasieve.analysis import SieveResults
+from betasieve.columns import Col
+from betasieve.config import PipelineConfig
+from betasieve.report.plots import ABS_Y_TITLE, _layout_figure
+from betasieve.report.report_generator import (
+    SieveReportGenerator,
+    _embed_image,
+    _embed_logo,
+    _read_resource,
+    _resources_dir,
+)
+from betasieve.report.report_section import ReportMainSection, ReportSubSection
+from betasieve.report.sections.differences import (
+    DifferencesSection,
+    ExactVsOtherDifferencesHistogram,
+    GroupedDifferencesHistogram,
+)
+from betasieve.report.sections.output_description import OutputDescriptionSection
+from betasieve.report.sections.p_hat_distribution import PhatHistogram
+from betasieve.report.sections.threshold_sweep import ThresholdSweepSection
+from betasieve.report.tables import _data_dict_figure, _summary_table_figure
+
+
+class ExampleSubSection(ReportSubSection):
+    @property
+    def title(self) -> str:
+        return "Example Child"
+
+    def _figures(self):
+        return ["<p>generated</p>"]
+
+
+class ExampleMainSection(ReportMainSection):
+    @property
+    def title(self) -> str:
+        return "Example Main"
+
+    @property
+    def subsection_types(self):
+        return [ExampleSubSection]
+
+
+def test_report_section_ids_and_tree_contracts(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    section = ExampleMainSection(sieve_results, sieve_args)
+    child = section.subsections[0]
+
+    assert section.id == "example-main"
+    assert child.id == "example-child"
+    assert child.description == ""
+    with pytest.raises(NotImplementedError, match="main section"):
+        section.generate()
+    with pytest.raises(AttributeError, match="must not define subsections"):
+        _ = child.subsections
+
+
+def test_table_factories_encode_values_and_size() -> None:
+    summary = _summary_table_figure([("Alpha", 1), ("Beta", "two")])
+    data_dict = _data_dict_figure(
+        ["Name", "Meaning"],
+        [("x", "first"), ("y", "second")],
+        col_widths=[0.3, 0.7],
+        row_height=40,
+    )
+
+    assert summary.data[0].cells.values == (
+        ["Alpha", "Beta"],
+        ["1", "two"],
+    )
+    assert summary.layout.height == 110
+    assert summary.data[0].header.font.family == "Montserrat, Arial, sans-serif"
+    assert summary.data[0].cells.font.family == "Montserrat, Arial, sans-serif"
+    assert data_dict.data[0].header.values == ("Name", "Meaning")
+    assert data_dict.data[0].columnwidth == (0.3, 0.7)
+    assert data_dict.layout.height == 130
+
+
+def test_layout_figure_sets_shared_chart_style() -> None:
+    figure = _layout_figure(
+        go.Figure(),
+        title="Title",
+        x_title="X",
+        y_title="Y",
+        height=321,
+        show_legend=False,
+    )
+
+    assert figure.layout.title.text == "Title"
+    assert figure.layout.xaxis.title.text == "X"
+    assert figure.layout.yaxis.title.text == "Y"
+    assert figure.layout.height == 321
+    assert figure.layout.showlegend is False
+    assert figure.layout.font.family == "Arial, Helvetica, sans-serif"
+
+
+def test_range_histogram_compares_exact_replicates_with_other_groups(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    section = ExactVsOtherDifferencesHistogram(sieve_results, sieve_args)
+
+    figure = section._plot()
+
+    assert [trace.name for trace in figure.data] == [
+        "Exact replicates",
+        "Design replicates",
+    ]
+    assert all(not trace.histnorm for trace in figure.data)
+    numeric = sieve_results.diff_frame.drop(columns=[Col.GROUP])
+    expected_max = float(numeric.to_numpy().max())
+    assert figure.data[0].xbins == figure.data[1].xbins
+    assert figure.data[0].xbins.start == 0
+    assert figure.data[0].xbins.end == pytest.approx(expected_max)
+    assert figure.data[0].xbins.size == pytest.approx(0.01)
+    assert list(figure.layout.xaxis.range) == pytest.approx([0, expected_max])
+    assert figure.layout.yaxis.title.text == ABS_Y_TITLE
+    buttons = figure.layout.updatemenus[0].buttons
+    assert [button.label for button in buttons] == ["Absolute", "Percentage"]
+
+
+def test_group_histogram_has_abs_pct_toggle(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    section = GroupedDifferencesHistogram(sieve_results, sieve_args)
+
+    figure = section._plot()
+
+    assert [trace.name for trace in figure.data] == [
+        "Pair type",
+        "Pair design",
+        "Exact replicates",
+    ]
+    numeric = sieve_results.diff_frame.drop(columns=[Col.GROUP])
+    expected_max = float(numeric.to_numpy().max())
+    assert all(trace.xbins == figure.data[0].xbins for trace in figure.data)
+    assert figure.data[0].xbins.end == pytest.approx(expected_max)
+    buttons = figure.layout.updatemenus[0].buttons
+    assert [button.label for button in buttons] == ["Absolute", "Percentage"]
+
+
+def test_phat_histogram_has_abs_pct_toggle(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    figure = PhatHistogram(sieve_results, sieve_args)._plot()
+
+    buttons = figure.layout.updatemenus[0].buttons
+    assert [button.label for button in buttons] == ["Absolute", "Percentage"]
+    assert figure.layout.yaxis.title.text == "Number of CpG sites"
+
+
+def test_differences_section_omits_absolute_only_histogram(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    names = [
+        cls.__name__
+        for cls in DifferencesSection(sieve_results, sieve_args).subsection_types
+    ]
+    assert names[:3] == [
+        "ExactVsOtherDifferencesHistogram",
+        "GroupedDifferencesHistogram",
+        "GroupedDifferencesBoxplot",
+    ]
+    assert "DifferencesHistogram" not in names
+
+
+def test_resource_helpers_read_text_and_embed_images(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    resources = tmp_path / "resources"
+    images = resources / "images"
+    images.mkdir(parents=True)
+    (resources / "template.css").write_text("body {}", encoding="utf-8")
+    (images / "betasieve_logo_transparent.svg").write_bytes(b"<svg/>")
+
+    import betasieve.report.report_generator as report_generator
+
+    monkeypatch.setattr(report_generator, "_RESOURCES_DIR", resources)
+    _resources_dir.cache_clear()
+    try:
+        assert _read_resource("template.css") == "body {}"
+        assert _embed_image("missing.png", "image/png") == ""
+        assert _embed_logo() == "data:image/svg+xml;base64,PHN2Zy8+"
+    finally:
+        _resources_dir.cache_clear()
+
+
+def test_resources_dir_raises_for_missing_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import betasieve.report.report_generator as report_generator
+
+    monkeypatch.setattr(report_generator, "_RESOURCES_DIR", tmp_path / "missing")
+    _resources_dir.cache_clear()
+    try:
+        with pytest.raises(FileNotFoundError, match="resources directory not found"):
+            _resources_dir()
+    finally:
+        _resources_dir.cache_clear()
+
+
+def test_dynamic_sections_reflect_optional_results(
+    sieve_args: PipelineConfig, sieve_results: SieveResults
+) -> None:
+    fixed = ThresholdSweepSection(sieve_results, sieve_args)
+    outputs = OutputDescriptionSection(sieve_results, sieve_args)
+
+    assert [section.__name__ for section in fixed.subsection_types] == [
+        "FixedThresholdPlaceholderSubSection",
+        "ThresholdSummaryTableSubSection",
+    ]
+    assert [section.__name__ for section in outputs.subsection_types] == [
+        "MinMaxDiffCsvSubSection",
+        "CandidateCpgsCsvSubSection",
+    ]
+
+    sieve_results.sweep_df = pd.DataFrame(
+        {
+            Col.GROUP: ["Exact replicates"],
+            Col.THRESHOLD: [0.1],
+            Col.P0: [0.05],
+            Col.PCT_EMPIR_ADJ_FLAGGED: [0.0],
+        }
+    )
+    sweep = ThresholdSweepSection(sieve_results, sieve_args)
+    outputs = OutputDescriptionSection(sieve_results, sieve_args)
+    assert [section.__name__ for section in sweep.subsection_types] == [
+        "P0SubSection",
+        "BetaSection",
+        "ThresholdSummaryTableSubSection",
+    ]
+    assert "SweepSummaryCsvSubSection" in [
+        section.__name__ for section in outputs.subsection_types
+    ]
+
+
+@pytest.mark.integration
+def test_build_report_writes_standalone_html(
+    tmp_path: Path,
+    sieve_args: PipelineConfig,
+    sieve_results: SieveResults,
+) -> None:
+    output = tmp_path / "report" / "betasieve"
+
+    result = SieveReportGenerator(sieve_results, sieve_args).build_report(output)
+
+    assert result == output.with_suffix(".html")
+    html = result.read_text(encoding="utf-8")
+    assert "<title>betaSieve Report</title>" in html
+    assert "Configuration" in html
+    assert "Max-Min Differences" in html
+    assert "Output Files" in html
+    assert "<strong>2</strong> probes" in html
+    assert "data:image/" in html

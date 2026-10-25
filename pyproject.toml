@@ -1,0 +1,106 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm[simple]>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "betasieve"
+dynamic = ["version"]
+description = "This package identifies EPICv2 probes that exhibit high variability between measurements of different probe designs."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [
+  {name = "Marleen Streicher", email = "marleenstreicher@icloud.com"}
+]
+keywords = ["methylation", "EPICv2", "CpG", "bioinformatics"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+
+dependencies = [
+  "epicv2-io>=1.0.5",
+  "numpy",
+  "pandas>=1.5",
+  "pyarrow>=10",
+  "openpyxl",
+  "scipy",
+  "statsmodels",
+  "plotly",
+  "python-dotenv",
+  "tyro>=0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pytest-cov>=4", "black", "ruff==0.14.14", "mypy", "pre-commit"]
+
+[project.urls]
+Homepage = "https://github.com/MarStreicher/betaSieve"
+Repository = "https://github.com/MarStreicher/betaSieve"
+Issues = "https://github.com/MarStreicher/betaSieve/issues"
+
+[project.scripts]
+betasieve = "betasieve.cli:main"
+
+[tool.setuptools_scm]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+betasieve = [
+  "report/resources/*.html",
+  "report/resources/*.css",
+  "report/resources/images/logo_transparent.svg",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+  "-ra",
+  "--strict-config",
+  "--strict-markers",
+  "--cov=betasieve",
+  "--cov-report=term-missing",
+  "--cov-report=xml",
+  "--cov-fail-under=80",
+]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+  "integration: tests that read packaged resources or combine components",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["betasieve"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.black]
+target-version = ["py39"]
+
+[tool.ruff]
+target-version = "py39"
+
+[tool.mypy]
+files = ["src", "tests"]
+mypy_path = "src"
+ignore_missing_imports = true
+exclude = [
+    "^build/",
+]
+
+[tool.pyright]
+extraPaths = ["src"]

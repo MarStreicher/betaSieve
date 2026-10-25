@@ -1,0 +1,36 @@
+<html>
+  <head lang="en">
+    <meta charset="UTF-8">
+    <title>{tab_title}</title>
+    <script src="https://cdn.plot.ly/plotly-3.3.0.min.js"></script>
+    {style}
+  </head>
+  <body>
+    <div class="content">
+      <div id="preamble" class="preamble">
+        <h1 class="report-title">{report_title}</h1>
+        {preamble}
+      </div>
+      <div class="sections">
+        {sections}
+      </div>
+      <footer class="report-footer">
+        <hr class="footer-divider">
+        <div class="footer-inner">
+          <img src="{logo_uri}" class="footer-logo" alt="betaSieve">
+          <p class="footer-tagline">EPICv2 Beta Methylation Filter</p>
+          <p class="footer-meta">Report generated: {generated}</p>
+        </div>
+      </footer>
+    </div>
+    <div class="toc">
+      <img src="{logo_uri}" class="toc-logo" alt="betaSieve">
+      <h2>Contents</h2>
+      <a href="#preamble">Summary</a>
+      {toc_items}
+      <button class="print-btn" type="button" onclick="window.print()">
+        Print / Save as PDF
+      </button>
+    </div>
+  </body>
+</html>

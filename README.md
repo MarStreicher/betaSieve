@@ -1,0 +1,504 @@
+<p align="right">
+  <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/betasieve_logo.png" alt="betaSieve logo" width="250">
+</p>
+
+<h1 align="left">betaSieve</h1>
+
+<p align="left">
+  EPICv2 probe designs analysis
+</p>
+
+betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing β-value differences for each (CpG site, sample) pair.
+
+## Why should I care?
+
+EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
+</p>
+
+<p align="center"><em>
+IlmnID naming and replicate definitions adapted from Peters et al. (2024),
+BMC Genomics 25:251, and Supplementary File 4
+(<a href="https://doi.org/10.1186/s12864-024-10027-5">doi:10.1186/s12864-024-10027-5</a>).
+</em></p>
+
+betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus may help to refine downstream analyses.
+
+Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki) for a more detailed explanation of the background and theory behind this package.
+
+---
+
+## Features
+
+1. Analysis of EPICv2 IlmnIDs with different probe designs.
+2. Optional threshold sweep across user-defined absolute β-value differences.
+3. Cohort-specific calibration against exact technical replicates.
+4. Empirical upper-tail testing with multiple-testing correction.
+5. An HTML report comparing empirical, binomial, and β-binomial null distributions.
+6. Identification of highly variable candidate IlmnIDs that can be reviewed for masking.
+
+---
+
+## Method overview
+
+### Probe-design groups
+
+betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
+
+- **Pair type:** two designs from the same chemistry family (`TC1`/`TC2` or `BC1`/`BC2`);
+- **Pair design:** any other CpG site with exactly two design types;
+- **Triplet:** three design types;
+- **Quadruplet:** four design types;
+- **Exact replicates:** repeated measurements using the same design.
+
+These categories are not mutually exclusive. A CpG site can contribute both a design-comparison row and an exact-replicate row.
+
+### Max-min differences and threshold calibration
+
+For every CpG site-sample pair, betaSieve calculates the max-min β-value difference across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this difference is strictly greater than $t$.
+
+The empirical background exceedance rate is
+
+$$
+p_0 =
+\frac{\text{exact-replicate CpG site-sample pairs with difference}>t}
+{\text{all exact-replicate CpG site-sample pairs}}.
+$$
+
+When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
+
+### CpG site level exceedance rate
+
+For CpG site $i$, betaSieve calculates
+
+$$
+\hat p_i =
+\frac{\text{number of samples with difference}>t}
+{\text{number of samples}}.
+$$
+
+The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
+
+---
+
+## Installation
+
+### From GitHub
+
+```bash
+pip install betasieve
+```
+
+Dependencies are installed automatically.
+
+---
+
+## Quick Start
+
+### Python API
+
+#### In-memory analysis
+
+For an in-memory pandas DataFrame:
+
+```python
+import pandas as pd
+from betasieve import SieveConfig, sieve_betas
+
+betas = pd.read_csv("betas.csv", index_col="IlmnID")
+config = SieveConfig(
+    threshold_min=0.03,
+    threshold_max=0.07,
+    threshold_step=0.01,
+)
+
+results = sieve_betas(betas, config)
+
+print(f"Threshold: {results.threshold}")
+print(f"Candidates: {len(results.candidate_cpgs)}")
+```
+
+Or load the same matrix with [epicv2-io](https://pypi.org/project/epicv2-io/), which keeps cg rows only and directly assigns the index column:
+
+```python
+from epicv2io import BetasLoader
+from betasieve import SieveConfig, sieve_betas
+
+betas = BetasLoader("betas.csv").load_data()
+config = SieveConfig(
+    threshold_min=0.03,
+    threshold_max=0.07,
+    threshold_step=0.01,
+)
+
+results = sieve_betas(betas, config)
+```
+
+`load_data()` also accepts optional manifest filters such as
+`exclude_sex_chromosomes=True` or `exclude_mismatch_pos=True`.
+
+`sieve_betas` validates that the DataFrame has unique EPICv2 IlmnIDs in its
+index, unique sample columns, numeric beta values in `[0, 1]`, and the
+probe groups required by the statistical model. Missing or infinite beta values
+produce a warning. It performs no file or report output.
+
+#### File-based pipeline
+
+To load the beta matrix and write configured outputs through the file-based
+pipeline:
+
+```python
+from pathlib import Path
+from betasieve import SieveConfig, PipelineConfig, run_sieve_pipeline
+
+config = PipelineConfig(
+    betas_path=Path("betas.csv"),
+    analysis=SieveConfig(threshold=0.05),
+)
+results = run_sieve_pipeline(config)
+```
+
+`run_sieve_pipeline` loads `betas_path`, calls `sieve_betas`, and optionally writes
+CSV files, a pickle, and an HTML report. Disable all output while retaining
+file loading with:
+
+```python
+config = PipelineConfig(
+    betas_path=Path("betas.csv"),
+    analysis=SieveConfig(threshold=0.05),
+    csv_files=False,
+    report=False,
+    pkl=False,
+)
+results = run_sieve_pipeline(config)
+```
+
+### Command Line
+
+```bash
+betasieve \
+  --betas-path betas.csv \
+  --analysis.threshold-min 0.03 \
+  --analysis.threshold-max 0.07 \
+  --analysis.threshold-step 0.01
+```
+
+Run `betasieve --help` for the full list of options.
+
+---
+
+## Citation
+
+If you use betaSieve in published work, please cite:
+
+> Streicher M. betaSieve. GitHub repository. 2026.
+
+For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also cite:
+
+> Peters TJ, Meyer B, Ryan L, Achinger-Kawecka J, Song J, Campbell EM, Qu W, Nair S, Loi-Luu P, Stricker P, Lim E, Stirzaker C, Clark SJ, Pidsley R. Characterisation and reproducibility of the HumanMethylationEPIC v2.0 BeadChip for DNA methylation profiling. *BMC Genomics*. 2024;25:251. https://doi.org/10.1186/s12864-024-10027-5
+
+---
+
+## License
+
+BSD 3-Clause License (see `[LICENSE](LICENSE)`).
+
+---
+
+## Parameters
+
+Statistical settings belong to `SieveConfig`. The file-based pipeline wraps
+that configuration in `PipelineConfig`, which additionally controls input and
+output paths. The command-line interface is generated from those dataclasses
+with [tyro](https://brentyi.github.io/tyro/), so every field is available as an
+option: `PipelineConfig` fields are top level (`--betas-path`, `--out-dir`) and
+`SieveConfig` fields are prefixed (`--analysis.threshold`, `--analysis.fdr`).
+
+### Required Parameters
+
+#### `betas_path`
+
+Path to the input β-value matrix.
+
+Expected format:
+
+- Rows correspond to CpG probes.
+- Columns correspond to samples.
+- Values must be beta values between 0 and 1.
+
+Example:
+
+```python
+betas_path=Path("betas.csv")
+```
+
+---
+
+### Threshold Selection
+
+betaSieve requires either:
+
+1. A fixed threshold (`threshold`)
+2. An automatic threshold search (`threshold_min`, `threshold_max`, `threshold_step`)
+
+#### `threshold`
+
+Fixed β-value max-min threshold. A CpG site-sample observation is an exceedance when its difference is strictly greater than this value.
+
+difference:
+
+```text
+(0, 1]
+```
+
+Example:
+
+```python
+threshold=0.05
+```
+
+---
+
+#### `threshold_min`
+
+Minimum threshold evaluated during automatic threshold search.
+
+Example:
+
+```python
+threshold_min=0.03
+```
+
+---
+
+#### `threshold_max`
+
+Maximum threshold evaluated during automatic threshold search.
+
+Example:
+
+```python
+threshold_max=0.07
+```
+
+---
+
+#### `threshold_step`
+
+Increment between tested thresholds.
+
+Example:
+
+```python
+threshold_step=0.01
+```
+
+The above configuration evaluates:
+
+```text
+0.03, 0.04, 0.05, 0.06, 0.07
+```
+
+---
+
+### Statistical Parameters
+
+#### `fdr`
+
+Method used for multiple-testing correction. Despite the parameter name, the supported choices include both false-discovery-rate and family-wise-error-rate procedures. betaSieve passes the selected method to `[statsmodels.stats.multitest.multipletests](https://www.statsmodels.org/stable/generated/statsmodels.stats.multitest.multipletests.html)`.
+
+Default:
+
+```python
+fdr="fdr_bh"
+```
+
+Available methods (as supported by `statsmodels.stats.multitest.multipletests`):
+
+| Method         | Description                           |
+| -------------- | ------------------------------------- |
+| bonferroni     | Bonferroni correction                 |
+| sidak          | Sidak correction                      |
+| holm-sidak     | Holm-Sidak procedure                  |
+| holm           | Holm procedure                        |
+| simes-hochberg | Simes-Hochberg procedure              |
+| hommel         | Hommel procedure                      |
+| fdr_bh         | Benjamini-Hochberg FDR                |
+| fdr_by         | Benjamini-Yekutieli FDR               |
+| fdr_tsbh       | Two-stage Benjamini-Hochberg          |
+| fdr_tsbky      | Two-stage Benjamini-Krieger-Yekutieli |
+
+---
+
+#### `confidence`
+
+Defines the testing level as `alpha = 1 - confidence` and supplies the normal quantile used by the Wilson calculation. With the default value of `0.95`, the implementation uses a one-sided 95% lower-bound criterion.
+
+Default:
+
+```python
+confidence=0.95
+```
+
+#### `target_p0`
+
+Target empirical background exceedance rate used during automatic threshold selection. It is not itself a CpG site-level false-positive rate.
+
+Default:
+
+```python
+target_p0=0.05
+```
+
+Set this parameter through the Python API or with the command-line option `--analysis.target-p0`.
+
+---
+
+### Output Parameters
+
+#### `out_dir`
+
+Root directory for enabled file outputs. No output directory is created when
+`csv_files`, `report`, and `pkl` are all disabled.
+
+Default:
+
+```python
+out_dir=Path("results")
+```
+
+Generated structure:
+
+```text
+results/
+├── csv/
+├── figures/
+├── report/
+└── pkl/
+```
+
+---
+
+#### `csv_files`
+
+Write CpG site-level statistics, candidate CpGs, and—when applicable—the threshold
+sweep summary as CSV files.
+
+Default:
+
+```python
+csv_files=True
+```
+
+Disable CSV output:
+
+```python
+csv_files=False
+```
+
+---
+
+#### `report`
+
+Generate an HTML summary report.
+
+Default:
+
+```python
+report=True
+```
+
+Disable report generation:
+
+```python
+report=False
+```
+
+---
+
+#### `pkl`
+
+Save intermediate Python objects as pickle files.
+
+Default:
+
+```python
+pkl=False
+```
+
+---
+
+## Examples
+
+### Fixed Threshold
+
+```python
+config = PipelineConfig(
+    betas_path=Path("betas.csv"),
+    analysis=SieveConfig(threshold=0.05),
+)
+```
+
+### Automatic Threshold Search
+
+```python
+config = PipelineConfig(
+    betas_path=Path("betas.csv"),
+    analysis=SieveConfig(
+        threshold_min=0.03,
+        threshold_max=0.07,
+        threshold_step=0.01,
+        target_p0=0.05,
+    ),
+)
+```
+
+---
+
+## Outputs
+
+Both `sieve_betas` and `run_sieve_pipeline` return a `SieveResults` object.
+The file-based pipeline additionally writes selected fields to disk.
+
+### `SieveResults`
+
+| Field | Content |
+| --- | --- |
+| `threshold` | Applied max–min β-value threshold $t$. |
+| `diff_frame` | Per CpG site, per-sample max–min ranges, plus the design `group`. |
+| `statistics_frame` | Site-level exceedance rates, p-values, and confidence intervals at $t$. |
+| `flagged_frame` | `statistics_frame` plus boolean flag columns. The primary flag is `p_empir_adj_flagged`. |
+| `candidate_cpgs` | IlmnIDs of all probes at sites with `p_empir_adj_flagged=True`. |
+| `sieved_betas` | Copy of the input β-value matrix with `candidate_cpgs` removed. The original file is not modified. |
+| `null_models` | Empirical, binomial, and beta-binomial null models fitted from exact replicates. Used in the HTML report; they do not determine the candidate list. |
+| `sweep_df` | Per-group flagging rates at each candidate threshold. `None` when $t$ was set directly. |
+
+### Principal statistical columns
+
+These columns live on `flagged_frame` (and therefore in `min_max_difference_{threshold}.csv`):
+
+- `above_threshold`: number of samples whose max–min difference exceeds $t$;
+- `p_hat`: CpG site-level sample exceedance rate;
+- `p0`: pooled exact-replicate background exceedance rate;
+- `p_empir`: empirical upper-tail p-value;
+- `p_empir_adj`: multiple-testing-adjusted empirical p-value;
+- `p_empir_adj_flagged`: primary discordance flag.
+
+### Files
+
+By default, `run_sieve_pipeline` writes:
+
+- `results/csv/min_max_difference_{threshold}.csv`: `flagged_frame`;
+- `results/csv/candidate_cpgs.csv`: `candidate_cpgs`;
+- `results/csv/threshold_sweep_summary.csv`: `sweep_df`, when a sweep was performed;
+- `results/report.html`: interactive analysis and null-model diagnostics.
+
+Set `pkl=True` to also pickle `PipelineConfig` and `SieveResults` under `results/pkl/`.
+`sieved_betas` is returned in memory only; it is not written as a CSV.
+
+## Statistical considerations
+
+- The empirical test assumes that exact-replicate sites provide an appropriate reference distribution for non-replicate design comparisons.
+- The current implementation assumes a complete sample matrix; missing β-values require careful preprocessing.
