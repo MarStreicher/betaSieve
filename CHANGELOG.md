@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 ### Changed
+- Compare replicate-group labels against plain strings (`.value`) in the report, matching the analysis code and avoiding silent all-False matches under certain pandas versions.
+
+### Removed
 
 ### Removed
 
