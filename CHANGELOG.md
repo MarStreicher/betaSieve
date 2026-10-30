@@ -7,7 +7,6 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 ### Changed
-- Compare replicate-group labels against plain strings (`.value`) in the report, matching the analysis code and avoiding silent all-False matches under certain pandas versions.
 
 ### Removed
 
@@ -66,3 +65,14 @@ All notable changes to this project will be documented in this file.
 ### Removed
 
 - Hand-written argparse CLI (`build_parser`, `from_namespace`).
+
+## [1.0.1] - 2026-10-30
+
+### Added
+/
+
+### Changed
+- Compare replicate-group labels against plain strings (`.value`) in the report, matching the analysis code and avoiding silent all-False matches under certain pandas versions.
+
+### Removed
+/
