@@ -77,7 +77,7 @@ class DifferencesSection(ReportMainSection):
         available_heatmaps = [
             section
             for section in heatmap_sections
-            if (self.results.diff_frame[Col.GROUP] == section.GROUP_KEY).any()
+            if (self.results.diff_frame[Col.GROUP] == section.GROUP_KEY.value).any()
         ]
         return [
             ExactVsOtherDifferencesHistogram,
@@ -106,7 +106,7 @@ class ExactVsOtherDifferencesHistogram(ReportSubSection):
         fig = go.Figure()
 
         value_cols = [column for column in df.columns if column != Col.GROUP]
-        exact_mask = df[Col.GROUP] == DesignGroup.EXACT_REPLICATES
+        exact_mask = df[Col.GROUP] == DesignGroup.EXACT_REPLICATES.value
         distributions = (
             ("Exact replicates", df.loc[exact_mask, value_cols], BS_GREEN),
             ("Design replicates", df.loc[~exact_mask, value_cols], "#F97316"),
@@ -151,7 +151,7 @@ class GroupedDifferencesHistogram(ReportSubSection):
         series = []
 
         for group in DesignGroup:
-            sub_df = df[df[Col.GROUP] == group]
+            sub_df = df[df[Col.GROUP] == group.value]
             if sub_df.empty:
                 continue
             values = sub_df.drop(columns=[Col.GROUP], errors="ignore").to_numpy()
@@ -196,7 +196,7 @@ class GroupedDifferencesBoxplot(ReportSubSection):
         fig = go.Figure()
 
         for group in DesignGroup:
-            group_frame = diff[diff[Col.GROUP] == group]
+            group_frame = diff[diff[Col.GROUP] == group.value]
             if group_frame.empty:
                 continue
             values = group_frame[value_cols].to_numpy().ravel()
@@ -249,7 +249,7 @@ class _GroupHeatmapSubSection(ReportSubSection):
         global_vmax: float,
     ) -> Optional[Figure]:
         df = self.results.diff_frame
-        subset = df[df[Col.GROUP] == group].sort_index()
+        subset = df[df[Col.GROUP] == group.value].sort_index()
         if subset.empty:
             return None
 
@@ -305,7 +305,7 @@ class _GroupHeatmapSubSection(ReportSubSection):
         if len(value_cols) == 0:
             return []
 
-        non_exact_df = df[df[Col.GROUP] != DesignGroup.EXACT_REPLICATES]
+        non_exact_df = df[df[Col.GROUP] != DesignGroup.EXACT_REPLICATES.value]
         if non_exact_df.empty:
             return []
 

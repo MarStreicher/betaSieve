@@ -128,7 +128,7 @@ class H0Histogram(ReportSubSection):
         df = self.results.flagged_frame
         fig = go.Figure()
 
-        er_mask = df[Col.GROUP] == DesignGroup.EXACT_REPLICATES
+        er_mask = df[Col.GROUP] == DesignGroup.EXACT_REPLICATES.value
         values = df.loc[er_mask, Col.P_HAT].to_numpy().ravel()
         color = DESIGN_GROUP_COLORS.get(DesignGroup.EXACT_REPLICATES, BS_GREEN)
 
@@ -248,7 +248,7 @@ class AllGroupsThresholdHistogram(ReportSubSection):
         for group in DesignGroup:
             if group == DesignGroup.EXACT_REPLICATES:
                 continue
-            mask = flagged[Col.GROUP] == group
+            mask = flagged[Col.GROUP] == group.value
             values = flagged.loc[mask, Col.P_HAT].dropna().to_numpy()
             if len(values) == 0:
                 continue

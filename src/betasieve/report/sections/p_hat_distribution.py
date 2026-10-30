@@ -53,7 +53,7 @@ class PhatHistogram(ReportSubSection):
         shared_bins = dict(start=0, end=1.0, size=1.0 / 40)
 
         for group in DesignGroup:
-            mask = df[Col.GROUP] == group
+            mask = df[Col.GROUP] == group.value
             values = df.loc[mask, [Col.P_HAT]].dropna().to_numpy().ravel()
             if values.size == 0:
                 continue
@@ -109,7 +109,7 @@ class PhatBoxplot(ReportSubSection):
         fig = go.Figure()
 
         for group in DesignGroup:
-            mask = flagged[Col.GROUP] == group
+            mask = flagged[Col.GROUP] == group.value
             values = flagged.loc[mask, Col.P_HAT].dropna().values
             if len(values) == 0:
                 continue

@@ -99,23 +99,23 @@ class ConfigResultsSubSection(ReportSubSection):
             ("Total CpG sites analysed", f"{len(flagged):,}"),
             (
                 f"{DesignGroup.PAIR_TYPE.value} sites",
-                int((group == DesignGroup.PAIR_TYPE).sum()),
+                int((group == DesignGroup.PAIR_TYPE.value).sum()),
             ),
             (
                 f"{DesignGroup.PAIR_DESIGN.value} sites",
-                int((group == DesignGroup.PAIR_DESIGN).sum()),
+                int((group == DesignGroup.PAIR_DESIGN.value).sum()),
             ),
             (
                 f"{DesignGroup.TRIPLET.value} sites",
-                int((group == DesignGroup.TRIPLET).sum()),
+                int((group == DesignGroup.TRIPLET.value).sum()),
             ),
             (
                 f"{DesignGroup.QUADRUPLET.value} sites",
-                int((group == DesignGroup.QUADRUPLET).sum()),
+                int((group == DesignGroup.QUADRUPLET.value).sum()),
             ),
             (
                 f"{DesignGroup.EXACT_REPLICATES.value} sites",
-                f"{int((group == DesignGroup.EXACT_REPLICATES).sum()):,}",
+                f"{int((group == DesignGroup.EXACT_REPLICATES.value).sum()):,}",
             ),
             (
                 "Selected threshold 𝑡",
