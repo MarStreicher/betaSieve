@@ -4,7 +4,7 @@ message: "If you use this software, please cite it."
 authors:
   - family-names: Streicher
     given-names: Marleen
-version: 1.0.0
-date-released: 2026-10-25
+version: 1.0.1
+date-released: 2026-10-30
 
 ! Authors are still missing

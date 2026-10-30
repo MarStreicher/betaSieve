@@ -63,7 +63,9 @@ def _add_group_traces(
     y_column: str,
 ) -> None:
     for group in DesignGroup:
-        subset = sweep_df.loc[sweep_df[Col.GROUP] == group].sort_values(Col.THRESHOLD)
+        subset = sweep_df.loc[sweep_df[Col.GROUP] == group.value].sort_values(
+            Col.THRESHOLD
+        )
         if subset.empty:
             continue
         color = DESIGN_GROUP_COLORS.get(group, BS_GREEN)
