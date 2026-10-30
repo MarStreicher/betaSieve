@@ -162,9 +162,8 @@ def test_sieve_betas_does_not_load_from_disk(
 def test_group_filter_uses_plain_string_against_python_enum_values() -> None:
 
     series = pd.Series(
-        [DesignGroup.PAIR_TYPE.value, DesignGroup.EXACT_REPLICATES.value], 
+        [DesignGroup.PAIR_TYPE.value, DesignGroup.EXACT_REPLICATES.value],
         dtype="string[python]",
-
     )
 
     assert not (series == DesignGroup.PAIR_TYPE).any()
