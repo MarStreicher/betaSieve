@@ -56,7 +56,9 @@ pip install betasieve
 
 Either of these public EPICv2 β-value matrices from the Gene Expression Omnibus can be used with the commands below.
 
-**[GSE281429](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE281429)** provides `GSE281429_beta.csv.gz` (about 630 MB compressed):
+**[GSE281429](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE281429)** provides `GSE281429_beta.csv.gz` (about 630 MB compressed).
+
+Linux, or macOS after `brew install wget`:
 
 ```bash
 wget -c \
@@ -64,10 +66,28 @@ wget -c \
 gunzip GSE281429_beta.csv.gz
 ```
 
-**[GSE338167](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE338167)** provides `GSE338167_beta_matrix_normalized.txt.gz` (about 4 GB compressed):
+macOS, using the built-in `curl`:
+
+```bash
+curl -L -C - -O \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE281nnn/GSE281429/suppl/GSE281429_beta.csv.gz"
+gunzip GSE281429_beta.csv.gz
+```
+
+**[GSE338167](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE338167)** provides `GSE338167_beta_matrix_normalized.txt.gz` (about 4 GB compressed).
+
+Linux, or macOS after `brew install wget`:
 
 ```bash
 wget -c \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE338nnn/GSE338167/suppl/GSE338167_beta_matrix_normalized.txt.gz"
+gunzip GSE338167_beta_matrix_normalized.txt.gz
+```
+
+macOS, using the built-in `curl`:
+
+```bash
+curl -L -C - -O \
   "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE338nnn/GSE338167/suppl/GSE338167_beta_matrix_normalized.txt.gz"
 gunzip GSE338167_beta_matrix_normalized.txt.gz
 ```
