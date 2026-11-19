@@ -17,12 +17,10 @@ betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [Method overview](#method-overview)
+- [Parameters](#parameters)
+- [Output](#output)
 - [Citation](#citation)
 - [License](#license)
-- [Parameters](#parameters)
-- [Examples](#examples)
-- [Outputs](#outputs)
-- [Statistical considerations](#statistical-considerations)
 
 ## Why should I care?
 
@@ -50,11 +48,32 @@ betaSieve finds sites where design disagreement is larger than expected from exa
 pip install betasieve
 ```
 
-Dependencies are installed automatically.
-
 ---
 
 ## Quick Start
+
+### Example Data
+
+Either of these public EPICv2 β-value matrices from the Gene Expression Omnibus can be used with the commands below.
+
+**[GSE281429](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE281429)** provides `GSE281429_beta.csv.gz` (about 630 MB compressed):
+
+```bash
+wget -c \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE281nnn/GSE281429/suppl/GSE281429_beta.csv.gz"
+gunzip GSE281429_beta.csv.gz
+```
+
+**[GSE338167](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE338167)** provides `GSE338167_beta_matrix_normalized.txt.gz` (about 4 GB compressed):
+
+```bash
+wget -c \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE338nnn/GSE338167/suppl/GSE338167_beta_matrix_normalized.txt.gz"
+gunzip GSE338167_beta_matrix_normalized.txt.gz
+```
+
+Pass the uncompressed file to `--betas-path`, for example `GSE281429_beta.csv`.
+
 
 ### Command Line
 
@@ -198,24 +217,6 @@ $$
 $$
 
 The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
-
----
-
-## Citation
-
-If you use betaSieve in published work, please cite:
-
-> Streicher M. betaSieve. GitHub repository. 2026.
-
-For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also cite:
-
-> Peters TJ, Meyer B, Ryan L, Achinger-Kawecka J, Song J, Campbell EM, Qu W, Nair S, Loi-Luu P, Stricker P, Lim E, Stirzaker C, Clark SJ, Pidsley R. Characterisation and reproducibility of the HumanMethylationEPIC v2.0 BeadChip for DNA methylation profiling. *BMC Genomics*. 2024;25:251. https://doi.org/10.1186/s12864-024-10027-5
-
----
-
-## License
-
-BSD 3-Clause License (see `[LICENSE](LICENSE)`).
 
 ---
 
@@ -442,34 +443,7 @@ pkl=False
 
 ---
 
-## Examples
-
-### Fixed Threshold
-
-```python
-config = PipelineConfig(
-    betas_path=Path("betas.csv"),
-    analysis=SieveConfig(threshold=0.05),
-)
-```
-
-### Automatic Threshold Search
-
-```python
-config = PipelineConfig(
-    betas_path=Path("betas.csv"),
-    analysis=SieveConfig(
-        threshold_min=0.03,
-        threshold_max=0.07,
-        threshold_step=0.01,
-        target_p0=0.05,
-    ),
-)
-```
-
----
-
-## Outputs
+## Output
 
 Both `sieve_betas` and `run_sieve_pipeline` return a `SieveResults` object.
 The file-based pipeline additionally writes selected fields to disk.
@@ -510,7 +484,25 @@ By default, `run_sieve_pipeline` writes:
 Set `pkl=True` to also pickle `PipelineConfig` and `SieveResults` under `results/pkl/`.
 `sieved_betas` is returned in memory only; it is not written as a CSV.
 
-## Statistical considerations
+### Statistical considerations
 
 - The empirical test assumes that exact-replicate sites provide an appropriate reference distribution for non-replicate design comparisons.
 - The current implementation assumes a complete sample matrix; missing β-values require careful preprocessing.
+
+---
+
+## Citation
+
+If you use betaSieve in published work, please cite:
+
+> Streicher M. betaSieve. GitHub repository. 2026.
+
+For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also read:
+
+> Peters TJ, Meyer B, Ryan L, Achinger-Kawecka J, Song J, Campbell EM, Qu W, Nair S, Loi-Luu P, Stricker P, Lim E, Stirzaker C, Clark SJ, Pidsley R. Characterisation and reproducibility of the HumanMethylationEPIC v2.0 BeadChip for DNA methylation profiling. *BMC Genomics*. 2024;25:251. https://doi.org/10.1186/s12864-024-10027-5
+
+---
+
+## License
+
+BSD 3-Clause License (see `[LICENSE](LICENSE)`).
