@@ -13,44 +13,15 @@ betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip
 ## Contents
 
 - [Why should I care?](#why-should-i-care)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
 - [Features](#features)
 - [Method overview](#method-overview)
-  - [Design groups](#design-groups)
-  - [Max-min differences and threshold calibration](#max-min-differences-and-threshold-calibration)
-  - [CpG site level exceedance rate](#cpg-site-level-exceedance-rate)
-- [Installation](#installation)
-  - [From pip](#from-pip)
-- [Quick Start](#quick-start)
-  - [Command Line](#command-line)
-  - [Python API](#python-api)
-    - [In-memory analysis](#in-memory-analysis)
-    - [File-based pipeline](#file-based-pipeline)
 - [Citation](#citation)
 - [License](#license)
 - [Parameters](#parameters)
-  - [Required Parameters](#required-parameters)
-    - [`betas_path`](#betas_path)
-  - [Threshold Selection](#threshold-selection)
-    - [`threshold`](#threshold)
-    - [`threshold_min`](#threshold_min)
-    - [`threshold_max`](#threshold_max)
-    - [`threshold_step`](#threshold_step)
-  - [Statistical Parameters](#statistical-parameters)
-    - [`fdr`](#fdr)
-    - [`confidence`](#confidence)
-    - [`target_p0`](#target_p0)
-  - [Output Parameters](#output-parameters)
-    - [`out_dir`](#out_dir)
-    - [`csv_files`](#csv_files)
-    - [`report`](#report)
-    - [`pkl`](#pkl)
 - [Examples](#examples)
-  - [Fixed Threshold](#fixed-threshold)
-  - [Automatic Threshold Search](#automatic-threshold-search)
 - [Outputs](#outputs)
-  - [`SieveResults`](#siveresults)
-  - [Principal statistical columns](#principal-statistical-columns)
-  - [Files](#files)
 - [Statistical considerations](#statistical-considerations)
 
 ## Why should I care?
@@ -68,59 +39,6 @@ BMC Genomics 25:251, and Supplementary File 4
 </em></p>
 
 betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus may help to refine downstream analyses.
-
----
-
-## Features
-
-1. Analysis of EPICv2 IlmnIDs with different probe designs.
-2. Optional threshold sweep across user-defined absolute β-value differences.
-3. Cohort-specific calibration against exact technical replicates.
-4. Empirical upper-tail testing with multiple-testing correction.
-5. An HTML report comparing empirical, binomial, and β-binomial null distributions.
-6. Identification of highly variable candidate IlmnIDs that can be reviewed for masking.
-
----
-
-## Method overview
-
-### Design groups
-
-betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
-
-- **Pair type:** two designs from the same chemistry family (`TC1`/`TC2` or `BC1`/`BC2`);
-- **Pair design:** any other CpG site with exactly two design types;
-- **Triplet:** three design types;
-- **Quadruplet:** four design types;
-- **Exact replicates:** repeated measurements using the same design.
-
-These categories are not mutually exclusive. A CpG site can contribute both a design-comparison row and an exact-replicate row.
-
-### Max-min differences and threshold calibration
-
-For every CpG site-sample pair, betaSieve calculates the max-min β-value difference across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this difference is strictly greater than $t$.
-
-The empirical background exceedance rate is
-
-$$
-p_0 =
-\frac{\text{exact-replicate CpG site-sample pairs with difference}>t}
-{\text{all exact-replicate CpG site-sample pairs}}.
-$$
-
-When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
-
-### CpG site level exceedance rate
-
-For CpG site $i$, betaSieve calculates
-
-$$
-\hat p_i =
-\frac{\text{number of samples with difference}>t}
-{\text{number of samples}}.
-$$
-
-The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
 
 ---
 
@@ -227,6 +145,59 @@ config = PipelineConfig(
 )
 results = run_sieve_pipeline(config)
 ```
+
+---
+
+## Features
+
+1. Analysis of EPICv2 IlmnIDs with different probe designs.
+2. Optional threshold sweep across user-defined absolute β-value differences.
+3. Cohort-specific calibration against exact technical replicates.
+4. Empirical upper-tail testing with multiple-testing correction.
+5. An HTML report comparing empirical, binomial, and β-binomial null distributions.
+6. Identification of highly variable candidate IlmnIDs that can be reviewed for masking.
+
+---
+
+## Method overview
+
+### Design groups
+
+betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
+
+- **Pair type:** two designs from the same chemistry family (`TC1`/`TC2` or `BC1`/`BC2`);
+- **Pair design:** any other CpG site with exactly two design types;
+- **Triplet:** three design types;
+- **Quadruplet:** four design types;
+- **Exact replicates:** repeated measurements using the same design.
+
+These categories are not mutually exclusive. A CpG site can contribute both a design-comparison row and an exact-replicate row.
+
+### Max-min differences and threshold calibration
+
+For every CpG site-sample pair, betaSieve calculates the max-min β-value difference across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this difference is strictly greater than $t$.
+
+The empirical background exceedance rate is
+
+$$
+p_0 =
+\frac{\text{exact-replicate CpG site-sample pairs with difference}>t}
+{\text{all exact-replicate CpG site-sample pairs}}.
+$$
+
+When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
+
+### CpG site level exceedance rate
+
+For CpG site $i$, betaSieve calculates
+
+$$
+\hat p_i =
+\frac{\text{number of samples with difference}>t}
+{\text{number of samples}}.
+$$
+
+The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
 
 ---
 
