@@ -10,6 +10,18 @@
 
 betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing β-value differences for each (CpG site, sample) pair.
 
+## Contents
+
+- [Why should I care?](#why-should-i-care)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Method overview](#method-overview)
+- [Parameters](#parameters)
+- [Output](#output)
+- [Citation](#citation)
+- [License](#license)
+
 ## Why should I care?
 
 EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample.
@@ -18,7 +30,7 @@ EPICv2 can measure the **same CpG site with several probe designs**. Those desig
   <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
 </p>
 
-<p align="center"><em>
+<p align="left"><em>
 IlmnID naming and replicate definitions adapted from Peters et al. (2024),
 BMC Genomics 25:251, and Supplementary File 4
 (<a href="https://doi.org/10.1186/s12864-024-10027-5">doi:10.1186/s12864-024-10027-5</a>).
@@ -26,76 +38,74 @@ BMC Genomics 25:251, and Supplementary File 4
 
 betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus may help to refine downstream analyses.
 
-Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki) for a more detailed explanation of the background and theory behind this package.
-
----
-
-## Features
-
-1. Analysis of EPICv2 IlmnIDs with different probe designs.
-2. Optional threshold sweep across user-defined absolute β-value differences.
-3. Cohort-specific calibration against exact technical replicates.
-4. Empirical upper-tail testing with multiple-testing correction.
-5. An HTML report comparing empirical, binomial, and β-binomial null distributions.
-6. Identification of highly variable candidate IlmnIDs that can be reviewed for masking.
-
----
-
-## Method overview
-
-### Probe-design groups
-
-betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
-
-- **Pair type:** two designs from the same chemistry family (`TC1`/`TC2` or `BC1`/`BC2`);
-- **Pair design:** any other CpG site with exactly two design types;
-- **Triplet:** three design types;
-- **Quadruplet:** four design types;
-- **Exact replicates:** repeated measurements using the same design.
-
-These categories are not mutually exclusive. A CpG site can contribute both a design-comparison row and an exact-replicate row.
-
-### Max-min differences and threshold calibration
-
-For every CpG site-sample pair, betaSieve calculates the max-min β-value difference across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this difference is strictly greater than $t$.
-
-The empirical background exceedance rate is
-
-$$
-p_0 =
-\frac{\text{exact-replicate CpG site-sample pairs with difference}>t}
-{\text{all exact-replicate CpG site-sample pairs}}.
-$$
-
-When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
-
-### CpG site level exceedance rate
-
-For CpG site $i$, betaSieve calculates
-
-$$
-\hat p_i =
-\frac{\text{number of samples with difference}>t}
-{\text{number of samples}}.
-$$
-
-The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
-
 ---
 
 ## Installation
 
-### From GitHub
+### From pip
 
 ```bash
 pip install betasieve
 ```
 
-Dependencies are installed automatically.
-
 ---
 
 ## Quick Start
+
+### Example Data
+
+Either of these public EPICv2 β-value matrices from the Gene Expression Omnibus can be used with the commands below.
+
+**[GSE281429](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE281429)** provides `GSE281429_beta.csv.gz` (about 630 MB compressed).
+
+Linux, or macOS after `brew install wget`:
+
+```bash
+wget -c \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE281nnn/GSE281429/suppl/GSE281429_beta.csv.gz"
+gunzip GSE281429_beta.csv.gz
+```
+
+macOS, using the built-in `curl`:
+
+```bash
+curl -L -C - -O \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE281nnn/GSE281429/suppl/GSE281429_beta.csv.gz"
+gunzip GSE281429_beta.csv.gz
+```
+
+**[GSE338167](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE338167)** provides `GSE338167_beta_matrix_normalized.txt.gz` (about 4 GB compressed).
+
+Linux, or macOS after `brew install wget`:
+
+```bash
+wget -c \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE338nnn/GSE338167/suppl/GSE338167_beta_matrix_normalized.txt.gz"
+gunzip GSE338167_beta_matrix_normalized.txt.gz
+```
+
+macOS, using the built-in `curl`:
+
+```bash
+curl -L -C - -O \
+  "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE338nnn/GSE338167/suppl/GSE338167_beta_matrix_normalized.txt.gz"
+gunzip GSE338167_beta_matrix_normalized.txt.gz
+```
+
+Pass the uncompressed file to `--betas-path`, for example `GSE281429_beta.csv`.
+
+
+### Command Line
+
+```bash
+betasieve \
+  --betas-path betas.csv \
+  --analysis.threshold-min 0.03 \
+  --analysis.threshold-max 0.07 \
+  --analysis.threshold-step 0.01
+```
+
+Run `betasieve --help` for the full list of options.
 
 ### Python API
 
@@ -175,35 +185,58 @@ config = PipelineConfig(
 results = run_sieve_pipeline(config)
 ```
 
-### Command Line
+---
 
-```bash
-betasieve \
-  --betas-path betas.csv \
-  --analysis.threshold-min 0.03 \
-  --analysis.threshold-max 0.07 \
-  --analysis.threshold-step 0.01
-```
+## Features
 
-Run `betasieve --help` for the full list of options.
+1. Analysis of EPICv2 IlmnIDs with different probe designs.
+2. Optional threshold sweep across user-defined absolute β-value differences.
+3. Cohort-specific calibration against exact technical replicates.
+4. Empirical upper-tail testing with multiple-testing correction.
+5. An HTML report comparing empirical, binomial, and β-binomial null distributions.
+6. Identification of highly variable candidate IlmnIDs that can be reviewed for masking.
 
 ---
 
-## Citation
+## Method overview
 
-If you use betaSieve in published work, please cite:
+### Design groups
 
-> Streicher M. betaSieve. GitHub repository. 2026.
+betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
 
-For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also cite:
+- **Pair type:** two designs from the same chemistry family (`TC1`/`TC2` or `BC1`/`BC2`);
+- **Pair design:** any other CpG site with exactly two design types;
+- **Triplet:** three design types;
+- **Quadruplet:** four design types;
+- **Exact replicates:** repeated measurements using the same design.
 
-> Peters TJ, Meyer B, Ryan L, Achinger-Kawecka J, Song J, Campbell EM, Qu W, Nair S, Loi-Luu P, Stricker P, Lim E, Stirzaker C, Clark SJ, Pidsley R. Characterisation and reproducibility of the HumanMethylationEPIC v2.0 BeadChip for DNA methylation profiling. *BMC Genomics*. 2024;25:251. https://doi.org/10.1186/s12864-024-10027-5
+These categories are not mutually exclusive. A CpG site can contribute both a design-comparison row and an exact-replicate row.
 
----
+### Max-min differences and threshold calibration
 
-## License
+For every CpG site-sample pair, betaSieve calculates the max-min β-value difference across the probes in the relevant group. Given a threshold $t$, an exceedance is recorded when this difference is strictly greater than $t$.
 
-BSD 3-Clause License (see `[LICENSE](LICENSE)`).
+The empirical background exceedance rate is
+
+$$
+p_0 =
+\frac{\text{exact-replicate CpG site-sample pairs with difference}>t}
+{\text{all exact-replicate CpG site-sample pairs}}.
+$$
+
+When a threshold sweep is requested, betaSieve selects the smallest evaluated threshold for which $p_0$ is less than or equal to `target_p0`. If none of the evaluated thresholds reaches the target, it selects the threshold with the smallest observed $p_0$.
+
+### CpG site level exceedance rate
+
+For CpG site $i$, betaSieve calculates
+
+$$
+\hat p_i =
+\frac{\text{number of samples with difference}>t}
+{\text{number of samples}}.
+$$
+
+The primary empirical upper-tail p-value compares $\hat p_i$ with the observed exact-replicate reference distribution. Then, multiple-testing correction is applied across non-exact-replicate comparisons, and `p_empir_adj_flagged` is the current primary flag.
 
 ---
 
@@ -430,34 +463,7 @@ pkl=False
 
 ---
 
-## Examples
-
-### Fixed Threshold
-
-```python
-config = PipelineConfig(
-    betas_path=Path("betas.csv"),
-    analysis=SieveConfig(threshold=0.05),
-)
-```
-
-### Automatic Threshold Search
-
-```python
-config = PipelineConfig(
-    betas_path=Path("betas.csv"),
-    analysis=SieveConfig(
-        threshold_min=0.03,
-        threshold_max=0.07,
-        threshold_step=0.01,
-        target_p0=0.05,
-    ),
-)
-```
-
----
-
-## Outputs
+## Output
 
 Both `sieve_betas` and `run_sieve_pipeline` return a `SieveResults` object.
 The file-based pipeline additionally writes selected fields to disk.
@@ -498,7 +504,25 @@ By default, `run_sieve_pipeline` writes:
 Set `pkl=True` to also pickle `PipelineConfig` and `SieveResults` under `results/pkl/`.
 `sieved_betas` is returned in memory only; it is not written as a CSV.
 
-## Statistical considerations
+### Statistical considerations
 
 - The empirical test assumes that exact-replicate sites provide an appropriate reference distribution for non-replicate design comparisons.
 - The current implementation assumes a complete sample matrix; missing β-values require careful preprocessing.
+
+---
+
+## Citation
+
+If you use betaSieve in published work, please cite:
+
+> Streicher M. betaSieve. GitHub repository. 2026.
+
+For EPICv2 probe naming and replicate definitions (as used in the overview figure above), please also read:
+
+> Peters TJ, Meyer B, Ryan L, Achinger-Kawecka J, Song J, Campbell EM, Qu W, Nair S, Loi-Luu P, Stricker P, Lim E, Stirzaker C, Clark SJ, Pidsley R. Characterisation and reproducibility of the HumanMethylationEPIC v2.0 BeadChip for DNA methylation profiling. *BMC Genomics*. 2024;25:251. https://doi.org/10.1186/s12864-024-10027-5
+
+---
+
+## License
+
+BSD 3-Clause License (see `[LICENSE](LICENSE)`).

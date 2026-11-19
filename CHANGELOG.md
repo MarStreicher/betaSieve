@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-### Removed
+- Require Python 3.11 or newer. Python 3.9 and 3.10 are no longer supported, and CI tests 3.11, 3.13, and 3.14.
 
 ### Removed
 

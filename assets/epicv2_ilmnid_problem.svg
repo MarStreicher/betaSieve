@@ -82,7 +82,7 @@
   <text x="454" y="322" class="tiny rep-body">only Rep_Num differs.</text>
 
   <rect x="676" y="268" width="220" height="68" rx="8" class="rep-box"/>
-  <text x="690" y="290" class="small rep-title">Location replicates</text>
+  <text x="690" y="290" class="small rep-title">Design replicates</text>
   <text x="690" y="308" class="tiny rep-body">Same site, different sequences;</text>
   <text x="690" y="322" class="tiny rep-body">suffix positions 1&#8211;3 differ.</text>
 </svg>

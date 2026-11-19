@@ -7,7 +7,7 @@ name = "betasieve"
 dynamic = ["version"]
 description = "This package identifies EPICv2 probes that exhibit high variability between measurements of different probe designs."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [
@@ -17,9 +17,6 @@ keywords = ["methylation", "EPICv2", "CpG", "bioinformatics"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
