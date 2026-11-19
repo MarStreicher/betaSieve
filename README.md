@@ -10,6 +10,49 @@
 
 betaSieve is a Python package that identifies HumanMethylationEPIC v2.0 BeadChip (EPICv2) probes that exhibit high variability between measurements of different probe designs. To do so, the package evaluates probe design agreement by analyzing β-value differences for each (CpG site, sample) pair.
 
+## Contents
+
+- [Why should I care?](#why-should-i-care)
+- [Features](#features)
+- [Method overview](#method-overview)
+  - [Design groups](#design-groups)
+  - [Max-min differences and threshold calibration](#max-min-differences-and-threshold-calibration)
+  - [CpG site level exceedance rate](#cpg-site-level-exceedance-rate)
+- [Installation](#installation)
+  - [From pip](#from-pip)
+- [Quick Start](#quick-start)
+  - [Command Line](#command-line)
+  - [Python API](#python-api)
+    - [In-memory analysis](#in-memory-analysis)
+    - [File-based pipeline](#file-based-pipeline)
+- [Citation](#citation)
+- [License](#license)
+- [Parameters](#parameters)
+  - [Required Parameters](#required-parameters)
+    - [`betas_path`](#betas_path)
+  - [Threshold Selection](#threshold-selection)
+    - [`threshold`](#threshold)
+    - [`threshold_min`](#threshold_min)
+    - [`threshold_max`](#threshold_max)
+    - [`threshold_step`](#threshold_step)
+  - [Statistical Parameters](#statistical-parameters)
+    - [`fdr`](#fdr)
+    - [`confidence`](#confidence)
+    - [`target_p0`](#target_p0)
+  - [Output Parameters](#output-parameters)
+    - [`out_dir`](#out_dir)
+    - [`csv_files`](#csv_files)
+    - [`report`](#report)
+    - [`pkl`](#pkl)
+- [Examples](#examples)
+  - [Fixed Threshold](#fixed-threshold)
+  - [Automatic Threshold Search](#automatic-threshold-search)
+- [Outputs](#outputs)
+  - [`SieveResults`](#siveresults)
+  - [Principal statistical columns](#principal-statistical-columns)
+  - [Files](#files)
+- [Statistical considerations](#statistical-considerations)
+
 ## Why should I care?
 
 EPICv2 can measure the **same CpG site with several probe designs**. Those designs appear as separate `IlmnID` rows, and we observed that their β-values can disagree for the same sample.
@@ -18,15 +61,13 @@ EPICv2 can measure the **same CpG site with several probe designs**. Those desig
   <img src="https://raw.githubusercontent.com/MarStreicher/betaSieve/main/assets/epicv2_ilmnid_problem.svg" alt="EPICv2 IlmnID naming: one CpG site, multiple probe designs, and suffix encoding" width="780">
 </p>
 
-<p align="center"><em>
+<p align="left"><em>
 IlmnID naming and replicate definitions adapted from Peters et al. (2024),
 BMC Genomics 25:251, and Supplementary File 4
 (<a href="https://doi.org/10.1186/s12864-024-10027-5">doi:10.1186/s12864-024-10027-5</a>).
 </em></p>
 
 betaSieve finds sites where design disagreement is larger than expected from exact technical replicates. It can thus may help to refine downstream analyses.
-
-Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki) for a more detailed explanation of the background and theory behind this package.
 
 ---
 
@@ -43,7 +84,7 @@ Please have a look at the [wiki](https://github.com/MarStreicher/betaSieve/wiki)
 
 ## Method overview
 
-### Probe-design groups
+### Design groups
 
 betaSieve parses EPICv2 IlmnIDs and classifies duplicate measurements into:
 
@@ -85,7 +126,7 @@ The primary empirical upper-tail p-value compares $\hat p_i$ with the observed e
 
 ## Installation
 
-### From GitHub
+### From pip
 
 ```bash
 pip install betasieve
@@ -96,6 +137,18 @@ Dependencies are installed automatically.
 ---
 
 ## Quick Start
+
+### Command Line
+
+```bash
+betasieve \
+  --betas-path betas.csv \
+  --analysis.threshold-min 0.03 \
+  --analysis.threshold-max 0.07 \
+  --analysis.threshold-step 0.01
+```
+
+Run `betasieve --help` for the full list of options.
 
 ### Python API
 
@@ -174,18 +227,6 @@ config = PipelineConfig(
 )
 results = run_sieve_pipeline(config)
 ```
-
-### Command Line
-
-```bash
-betasieve \
-  --betas-path betas.csv \
-  --analysis.threshold-min 0.03 \
-  --analysis.threshold-max 0.07 \
-  --analysis.threshold-step 0.01
-```
-
-Run `betasieve --help` for the full list of options.
 
 ---
 
